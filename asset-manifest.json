@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/CricStatX-Advanced/static/css/main.e6c13ad2.css",
+    "main.js": "/CricStatX-Advanced/static/js/main.db668b8c.js",
+    "index.html": "/CricStatX-Advanced/index.html",
+    "main.e6c13ad2.css.map": "/CricStatX-Advanced/static/css/main.e6c13ad2.css.map",
+    "main.db668b8c.js.map": "/CricStatX-Advanced/static/js/main.db668b8c.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.db668b8c.js"
+  ]
+}
