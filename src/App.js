@@ -1124,7 +1124,7 @@ export default function App(){
   if(selMatch) return <div style={{minHeight:"100vh",background:T.bg,color:T.text}}><FontLink/><style>{`*{box-sizing:border-box;margin:0;padding:0;}`}</style><div style={{padding:"20px 0"}}><MatchDetail match={selMatch} onBack={()=>setSelMatch(null)}/></div></div>;
 
   return(
-    <div style={{minHeight:"100vh",background:T.bg,color:T.text,fontFamily:T.font}}>
+    <div style={{minHeight:"100vh", minWidth: "1200px", background:T.bg,color:T.text,fontFamily:T.font}}>
       <FontLink/>
       <style>{`*{box-sizing:border-box;margin:0;padding:0;}::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:${T.bg};}::-webkit-scrollbar-thumb{background:${T.border2};border-radius:3px;}input,select{outline:none;}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}`}</style>
 
