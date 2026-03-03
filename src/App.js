@@ -18,7 +18,6 @@ const T = {
   font:"'Rajdhani', sans-serif", mono:"'JetBrains Mono', monospace", display:"'Bebas Neue', cursive",
 };
 
-// MAKE SURE THERE IS NO SLASH AT THE VERY END
 const API_URL = "https://cricstatx-advanced.onrender.com/api";
 
 // Helpers
