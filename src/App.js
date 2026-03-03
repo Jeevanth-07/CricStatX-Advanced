@@ -949,7 +949,7 @@ export default function App(){
 
     try {
       // Send the box to your Python server!
-      const response = await fetch("http://localhost:5000/api/upload", {
+      const response = await fetch(`${API_URL}/upload`, {
         method: "POST",
         body: formData,
       });
@@ -977,7 +977,7 @@ export default function App(){
     if (!selEditPlayer) return alert("Select a player first!");
     if (!window.confirm(`Delete ${selEditPlayer} from all match records?`)) return;
 
-    const res = await fetch(`http://localhost:5000/api/player/${encodeURIComponent(selEditPlayer)}`, { method: "DELETE" });
+    const res = await fetch(`${API_URL}/player/${encodeURIComponent(selEditPlayer)}`, { method: "DELETE" });
     if (res.ok) { 
       alert("Player deleted!"); 
       setSelEditPlayer("");
@@ -989,7 +989,7 @@ export default function App(){
     if (!selEditPlayer || !selTargetPlayer) return alert("Select both source and target!");
     if (!window.confirm(`Are you sure you want to merge ${selEditPlayer} into ${selTargetPlayer}?`)) return;
     
-    const res = await fetch("http://localhost:5000/api/players/merge", {
+    const res = await fetch(`${API_URL}/players/merge`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ source: selEditPlayer, target: selTargetPlayer })
@@ -1007,7 +1007,7 @@ export default function App(){
     if (!window.confirm("Delete this match? All player stats will be recalculated.")) return;
     
     // We send selEditMatch which contains the match ID
-    const res = await fetch(`http://localhost:5000/api/match/${selEditMatch}`, { method: "DELETE" });
+    const res = await fetch(`${API_URL}/match/${selEditMatch}`, { method: "DELETE" });
     if (res.ok) { 
       alert("Match deleted!"); 
       setSelEditMatch("");
@@ -1037,7 +1037,7 @@ export default function App(){
 
   const handleSaveMatchEdit = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/match/${matchFormData.id}`, {
+      const res = await fetch(`${API_URL}/match/${matchFormData.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -1079,7 +1079,7 @@ export default function App(){
     if (!window.confirm("🚨 FINAL CONFIRMATION: Are you 100% sure? All matches and players will be permanently erased.")) return;
 
     try {
-      const res = await fetch("http://localhost:5000/api/reset", { method: "DELETE" });
+      const res = await fetch(`${API_URL}/reset`, { method: "DELETE" });
       if (res.ok) {
         alert("System reset successful. Database is now empty.");
         // Clear dropdown states
