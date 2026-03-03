@@ -18,8 +18,8 @@ const T = {
   font:"'Rajdhani', sans-serif", mono:"'JetBrains Mono', monospace", display:"'Bebas Neue', cursive",
 };
 
-// API Configuration
-const API_URL = "http://localhost:5000/api";
+// MAKE SURE THERE IS NO SLASH AT THE VERY END
+const API_URL = "https://cricstatx-advanced.onrender.com/api";
 
 // Helpers
 const getAge = dob => { const d=new Date(dob),n=new Date(); let a=n.getFullYear()-d.getFullYear(); if(n<new Date(n.getFullYear(),d.getMonth(),d.getDate()))a--; return a; };
