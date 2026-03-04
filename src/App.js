@@ -949,7 +949,7 @@ export default function App(){
 
     try {
       // Send the box to your Python server!
-      const response = await fetch(`${API_URL}/upload`, {
+      const response = await fetch("https://cricstatx-advanced.onrender.com/api/upload", {
         method: "POST",
         body: formData,
       });
