@@ -8,6 +8,7 @@ from flask_cors import CORS
 import pdfplumber
 import tempfile
 from pymongo import MongoClient
+import certifi
 
 
 app = Flask(__name__)
@@ -15,8 +16,7 @@ CORS(app)
 
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://Jeevanth_07:CricstatX@cricstatx-cluster.h2tizva.mongodb.net/?appName=CricStatX-Cluster")
 
-# Connect to the cloud database
-client = MongoClient(MONGO_URI)
+client = MongoClient(MONGO_URI, tlsCAFile=certifi.where())
 db = client["cricstatx_db"]
 collection = db["app_data"]
 
