@@ -7,31 +7,43 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pdfplumber
 import tempfile
+from pymongo import MongoClient
+
 
 app = Flask(__name__)
 CORS(app)
 
-DB_FILE = "database.json"
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb+srv://Jeevanth_07:CricstatX@cricstatx-cluster.h2tizva.mongodb.net/?appName=CricStatX-Cluster")
 
-# --- LOAD SAVED DATA ---
+# Connect to the cloud database
+client = MongoClient(MONGO_URI)
+db = client["cricstatx_db"]
+collection = db["app_data"]
+
+# --- LOAD SAVED DATA FROM MONGODB ---
 def load_data():
-    if os.path.exists(DB_FILE):
-        try:
-            with open(DB_FILE, "r") as f:
-                return json.load(f)
-        except:
-            return {"matches": {}, "players": {}}
+    try:
+        doc = collection.find_one({"_id": "master_db"})
+        if doc:
+            return {"matches": doc.get("matches", {}), "players": doc.get("players", {})}
+    except Exception as e:
+        print("Database connection error:", e)
     return {"matches": {}, "players": {}}
 
-# Initialize the database
+# Initialize the database when the server starts
 DB = load_data()
 
-# --- SAVE DATA TO DISK ---
+# --- SAVE DATA TO MONGODB ---
 def save_data():
-    with open(DB_FILE, "w") as f:
-        json.dump(DB, f, indent=4)
+    try:
+        collection.update_one(
+            {"_id": "master_db"},
+            {"$set": {"matches": DB["matches"], "players": DB["players"]}},
+            upsert=True
+        )
+    except Exception as e:
+        print("Failed to save to database:", e)
 
-# --- HOME ROUTE (FIXES 404 ON RENDER) ---
 @app.route('/')
 def home():
     return jsonify({
