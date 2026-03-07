@@ -374,19 +374,24 @@ def merge_players():
 
 
 # --- DELETE PLAYER ROUTE ---
-@app.route("/api/player/<player_name>", methods=["DELETE"])
-def delete_player(player_name):
+@app.route("/api/player/delete", methods=["POST", "DELETE"])
+def delete_player():
+    data = request.json
+    player_name = data.get("player_name")
+    
+    if not player_name:
+        return jsonify({"error": "Missing player name"}), 400
+
     # To permanently delete a player, we must erase them from all past scorecards
     for match in DB["matches"].values():
         for inn in match.get("innings", []):
             # Keep everyone EXCEPT the player being deleted
-            inn["batting"] = [b for b in inn.get("batting", []) if b["name"].lower() != player_name.lower()]
-            inn["bowling"] = [b for b in inn.get("bowling", []) if b["name"].lower() != player_name.lower()]
+            inn["batting"] = [b for b in inn.get("batting", []) if b.get("name", "").lower() != player_name.lower()]
+            inn["bowling"] = [b for b in inn.get("bowling", []) if b.get("name", "").lower() != player_name.lower()]
 
     refresh_all_player_stats()
     save_data()
     return jsonify({"message": f"Player {player_name} permanently deleted."}), 200
-
 # EDITING ROUTES
 @app.route("/api/match/<match_id>", methods=["PUT"])
 def edit_match(match_id):

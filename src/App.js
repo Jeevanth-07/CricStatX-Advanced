@@ -687,7 +687,7 @@ const MatchDetail = ({match:m,onBack}) => {
           {m.innings.map((g,i)=>(
             <div key={i} style={{background:"#ffffff05",border:`1px solid ${T.border}`,borderRadius:12,padding:12}}>
               <div style={{fontWeight:700,color:T.text,marginBottom:3,fontFamily:T.font}}>{g.team}</div>
-              <div style={{fontFamily:T.display,fontSize:30,color:T.green,letterSpacing:1}}>{g.score || `${g.total_runs}/${g.total_wickets}`}</div>
+              <div style={{fontFamily:T.display,fontSize:30,color:T.green,letterSpacing:1}}>{g.score || `${g.total_runs ?? g.total ?? 0}/${g.total_wickets ?? g.wickets ?? 0}`}</div>
               <div style={{color:T.muted,fontSize:12,fontFamily:T.mono}}>{g.overs} overs</div>
             </div>
           ))}
@@ -977,11 +977,23 @@ export default function App(){
     if (!selEditPlayer) return alert("Select a player first!");
     if (!window.confirm(`Delete ${selEditPlayer} from all match records?`)) return;
 
-    const res = await fetch(`${API_URL}/player/${encodeURIComponent(selEditPlayer)}`, { method: "DELETE" });
-    if (res.ok) { 
-      alert("Player deleted!"); 
-      setSelEditPlayer("");
-      if (typeof fetchData === "function") fetchData(); 
+    try {
+      const res = await fetch(`${API_URL}/player/delete`, { 
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ player_name: selEditPlayer })
+      });
+      
+      if (res.ok) { 
+        alert("Player deleted!"); 
+        setSelEditPlayer("");
+        if (typeof fetchData === "function") fetchData(); 
+      } else {
+        alert("Server failed to delete player.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Network error. Could not connect to backend.");
     }
   };
 
@@ -1026,9 +1038,13 @@ export default function App(){
         title: targetMatch.match_title || "",
         result: targetMatch.result || "",
         innings: targetMatch.innings?.map(inn => ({
-          team: inn.team || "", total: inn.total || "", wickets: inn.wickets || "", overs: inn.overs || "",
-          batting: inn.batting || [], // Load the batters
-          bowling: inn.bowling || []  // Load the bowlers
+          ...inn, // PRESERVES extras, fall_of_wickets, etc. so they don't get deleted
+          team: inn.team || "", 
+          total: inn.total ?? inn.total_runs ?? 0,       // FIX: Safely loads runs
+          wickets: inn.wickets ?? inn.total_wickets ?? 0, // FIX: Safely loads wickets
+          overs: inn.overs || "",
+          batting: inn.batting || [], 
+          bowling: inn.bowling || []  
         })) || []
       });
       setShowMatchModal(true);
@@ -1123,10 +1139,15 @@ export default function App(){
   if(selPlayer) return <div style={{minHeight:"100vh",background:T.bg,color:T.text}}><FontLink/><style>{`*{box-sizing:border-box;margin:0;padding:0;}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}`}</style><div style={{padding:"20px 0"}}><PlayerDetail player={selPlayer} onBack={()=>setSelPlayer(null)}/></div></div>;
   if(selMatch) return <div style={{minHeight:"100vh",background:T.bg,color:T.text}}><FontLink/><style>{`*{box-sizing:border-box;margin:0;padding:0;}`}</style><div style={{padding:"20px 0"}}><MatchDetail match={selMatch} onBack={()=>setSelMatch(null)}/></div></div>;
 
-  return(
-    <div style={{minHeight:"100vh", minWidth: "1200px", background:T.bg,color:T.text,fontFamily:T.font}}>
+return(
+    <div style={{minHeight:"100vh", minWidth: "1200px", background:T.bg,color:T.text,fontFamily:T.font, position: "relative", overflowX: "hidden"}}>
       <FontLink/>
       <style>{`*{box-sizing:border-box;margin:0;padding:0;}::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:${T.bg};}::-webkit-scrollbar-thumb{background:${T.border2};border-radius:3px;}input,select{outline:none;}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}`}</style>
+
+      {/* --- PREMIUM AMBIENT BACKGROUND SHADING --- */}
+      <div style={{position:"fixed", top:"-20%", left:"5%", width:"60vw", height:"60vw", background:`radial-gradient(circle, ${T.green}28, transparent 65%)`, filter:"blur(120px)", pointerEvents:"none", zIndex:0}} />
+      <div style={{position:"fixed", bottom:"-20%", right:"5%", width:"60vw", height:"60vw", background:`radial-gradient(circle, ${T.blue}28, transparent 65%)`, filter:"blur(120px)", pointerEvents:"none", zIndex:0}} />
+      {/* ------------------------------------------ */}
 
       {/* NAV */}
       <nav style={{background:`${T.bg2}f0`,backdropFilter:"blur(24px)",borderBottom:`1px solid ${T.border}`,padding:"0 20px",position:"sticky",top:0,zIndex:200}}>
@@ -1189,16 +1210,61 @@ export default function App(){
         <div style={{padding:"28px 24px",maxWidth:1280,margin:"0 auto"}}>
           <SecTitle accent={T.blue} sub="All parsed matches and scorecards">MATCH CENTRE</SecTitle>
           <div style={{display:"grid",gap:13}}>
-            {matches.map(m=>(
-              <Card key={m.id} glow={T.blue} onClick={()=>setSelMatch(m)}>
-                <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:11}}>
-                  <div>
-                    <div style={{fontFamily:T.display,fontSize:24,letterSpacing:1,color:T.text}}>{m.match_title}</div>
+            {matches.map(m=>{
+              // Parse match title to style "vs" separately
+              let t1 = m.match_title, t2 = "";
+              if (m.match_title) {
+                const parts = m.match_title.split(/ V\/S | vs | VS /i);
+                if (parts.length >= 2) {
+                  t1 = parts[0].trim();
+                  t2 = parts[1].trim();
+                }
+              }
+
+              return (
+                <Card key={m.id} glow={T.blue} onClick={()=>setSelMatch(m)}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:11}}>
+                    
+                    {/* LEFT SIDE: Title and Result */}
+                    <div>
+                      <div style={{fontFamily:T.font,fontSize:20,fontWeight:800,color:T.text,marginBottom:6}}>
+                        {t2 ? (
+                          <>
+                            {t1} <span style={{fontSize:14,color:T.muted,fontStyle:"italic",fontWeight:400,margin:"0 6px"}}>vs</span> {t2}
+                          </>
+                        ) : (
+                          t1
+                        )}
+                      </div>
+                      <div style={{color:T.green,fontWeight:600,fontFamily:T.font,fontSize:14}}>
+                        {m.result}
+                      </div>
+                    </div>
+
+                    {/* RIGHT SIDE: Innings Scores */}
+                    <div style={{textAlign:"right", display:"flex", flexDirection:"column", gap:10}}>
+                      {m.innings?.map((inn, idx) => {
+                        // FIX: Uses || instead of ?? so empty strings ("") fallback to 0
+                        const runs = inn.total || inn.total_runs || 0;
+                        const wickets = inn.wickets || inn.total_wickets || 0;
+
+                        return (
+                          <div key={idx} style={{lineHeight: 1.1}}>
+                            <div style={{fontFamily:T.display,fontSize:20,color:T.text,letterSpacing:1}}>
+                              {inn.team}: {runs}/{wickets}
+                            </div>
+                            <div style={{color:T.muted,fontSize:13,fontFamily:T.font,marginTop:4}}>
+                              ({inn.overs} ov)
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
                   </div>
-                  <div style={{textAlign:"right"}}><div style={{color:T.green,fontWeight:800,fontFamily:T.font}}>{m.result}</div></div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              )
+            })}
           </div>
           {matches.length===0&&<div style={{textAlign:"center",padding:60,color:T.muted}}>No match records found.</div>}
         </div>
