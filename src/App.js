@@ -27,7 +27,7 @@ const rc = r => r>=95?T.green:r>=88?T.cyan:r>=80?T.yellow:T.red;
 const fmtNum = n => n>=1000?(n/1000).toFixed(1)+"K":String(n);
 const PCOLORS = [T.green,T.blue,T.purple,T.orange,T.cyan,T.yellow];
 
-// Data Adapters (Maps Backend Data to Frontend UI Structure)
+// Data Adapters
 const adaptPlayer = (p) => {
   const matches = p.batting?.matches || 1;
   const runs = p.batting?.runs || 0;
@@ -40,12 +40,10 @@ const adaptPlayer = (p) => {
   const sixes = p.batting?.sixes || 0;
   const notOuts = p.batting?.not_outs || 0;
 
-  // Rate metrics for advanced scoring (prevents auto-maxing to 99 for high match counts)
   const wktsPerMatch = wkts / matches;
   const foursPerMatch = fours / matches;
   const sixesPerMatch = sixes / matches;
 
-  // --- ASYMPTOTIC FANTASY CURVE RATING ---
   const fpts = runs + (wkts * 25) + (fours * 2) + (sixes * 4);
   const fppm = fpts / matches;
 
@@ -57,9 +55,7 @@ const adaptPlayer = (p) => {
   if (wkts > 3 && bowlEcon > 0 && bowlEcon < 7.0) rawRating += Math.min(2, (7.0 - bowlEcon) * 0.5);
 
   const rating = Math.min(99, Math.max(40, Math.round(rawRating)));
-  // -----------------------------------------
 
-  // --- DYNAMIC ADVANCED METRICS (FIXED TO USE AVERAGES) ---
   const consistencyScore = Math.round(Math.min(99, 40 + (batAvg * 1.2) + (wktsPerMatch * 15)));
   const impactScore = Math.round(Math.min(99, 40 + (fppm * 1.2)));
   
@@ -70,10 +66,7 @@ const adaptPlayer = (p) => {
   const baseAvg = batAvg > 0 ? batAvg : (wkts > 0 ? 15 : 10); 
   const isChaser = batSr > 110 || notOuts > 1; 
 
-/// --- DYNAMIC MATCH HISTORY GENERATION (INNINGS SIMULATOR) ---
   const numPoints = Math.min(10, Math.max(3, matches)); 
-  
-  // 1. Create a custom predictable random generator based on the player's name
   let currentSeed = p.name.charCodeAt(0) + p.name.length;
   const seededRandom = () => {
     const x = Math.sin(currentSeed++) * 10000;
@@ -81,25 +74,12 @@ const adaptPlayer = (p) => {
   };
   
   const formHistory = Array.from({length: numPoints}, (_, i) => {
-      // The final match is always their exact current overall rating
       if (i === numPoints - 1) return rating; 
-      
-      // 2. Simulate actual match stats using their real averages
-      // They can score anywhere from 0 up to 2.2x their average in a single "game"
       const simRuns = batAvg * (seededRandom() * 2.2); 
-      // They can take between 0 and 3x their average wickets
       const simWkts = wkts > 0 ? wktsPerMatch * (seededRandom() * 3) : 0; 
-      
-      // 3. Calculate Fantasy Points for this specific simulated match
       const simFpts = simRuns + (simWkts * 25);
-      
-      // 4. Convert that match's fantasy points into a temporary Match Rating (40-99)
       const matchRating = 40 + (simFpts * 1.2);
-      
-      // 5. Blend it! Combine their simulated match performance (40%) with their real career average (60%)
-      // This ensures the graph looks wild and spikey, but stays anchored to their actual skill level.
       const blendedRating = (matchRating * 0.4) + (rating * 0.6);
-
       return Math.round(Math.min(99, Math.max(40, blendedRating)));
   });
   const isBowler = wkts > 0 && (wkts * 10) >= runs;
@@ -181,12 +161,12 @@ const PBar = ({label,value,max=100,color=T.blue})=>(
   </div>
 );
 const TabRow = ({tabs,active,onChange,accent=T.green})=>(
-  <div style={{display:"flex",gap:3,background:"#ffffff06",borderRadius:12,padding:4,flexWrap:"wrap"}}>
-    {tabs.map(t=>( <button key={t} onClick={()=>onChange(t)} style={{padding:"7px 15px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:T.font,background:active===t?accent:"transparent",color:active===t?"#05090f":T.muted,transition:"all .2s",letterSpacing:.3}}>{t}</button> ))}
+  <div style={{display:"flex",gap:6,background:"#ffffff06",borderRadius:12,padding:6,flexWrap:"wrap"}}>
+    {tabs.map(t=>( <button key={t} onClick={()=>onChange(t)} style={{padding:"8px 16px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,fontFamily:T.font,background:active===t?accent:"transparent",color:active===t?"#05090f":T.muted,transition:"all .2s",letterSpacing:.3}}>{t}</button> ))}
   </div>
 );
 const Card = ({children,style={},glow,onClick})=>(
-  <div onClick={onClick} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:20,padding:20,position:"relative",overflow:"hidden",transition:"all .25s",...(onClick?{cursor:"pointer"}:{}),...style}}
+  <div onClick={onClick} style={{background:T.card,border:`1px solid ${T.border}`,borderRadius:20,padding:"clamp(15px, 4vw, 24px)",position:"relative",overflow:"hidden",transition:"all .25s",...(onClick?{cursor:"pointer"}:{}),...style}}
     onMouseEnter={e=>{if(onClick){e.currentTarget.style.borderColor=(glow||T.green)+"44";e.currentTarget.style.transform="translateY(-3px)";}}}
     onMouseLeave={e=>{if(onClick){e.currentTarget.style.borderColor=T.border;e.currentTarget.style.transform="translateY(0)";}}}>{children}</div>
 );
@@ -194,7 +174,7 @@ const SecTitle = ({children,accent=T.green,sub})=>(
   <div style={{marginBottom:24}}>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
       <div style={{width:4,height:28,background:`linear-gradient(180deg,${accent},${accent}44)`,borderRadius:2}}/>
-      <div style={{fontFamily:T.display,fontSize:28,letterSpacing:2,color:T.text}}>{children}</div>
+      <div style={{fontFamily:T.display,fontSize:"clamp(22px, 5vw, 28px)",letterSpacing:2,color:T.text}}>{children}</div>
     </div>
     {sub&&<div style={{fontSize:13,color:T.muted,marginLeft:14,fontFamily:T.font}}>{sub}</div>}
   </div>
@@ -210,7 +190,6 @@ const Ticker = ({ data }) => {
     );
   }
   
-  // Safely calculate ALL the top players on the fly
   const topScorer = data.players.reduce((p, c) => ((p.stats?.odi?.runs || 0) > (c.stats?.odi?.runs || 0) ? p : c), data.players[0]);
   const topBowler = data.players.reduce((p, c) => ((p.stats?.odi?.wkts || 0) > (c.stats?.odi?.wkts || 0) ? p : c), data.players[0]);
   const topMVP = data.players.reduce((p, c) => ((p.rating || 0) > (c.rating || 0) ? p : c), data.players[0]);
@@ -218,41 +197,31 @@ const Ticker = ({ data }) => {
   const topSixes = data.players.reduce((p, c) => ((p.stats?.odi?.["6s"] || 0) > (c.stats?.odi?.["6s"] || 0) ? p : c), data.players[0]);
   const topFours = data.players.reduce((p, c) => ((p.stats?.odi?.["4s"] || 0) > (c.stats?.odi?.["4s"] || 0) ? p : c), data.players[0]);
 
-  // We package the stats into a single block so we can easily duplicate it
   const tickerContent = (
     <div style={{ display: "flex", alignItems: "center", paddingRight: 50 }}>
       <span style={{color:T.green, fontWeight:800}}>🟢 LIVE STATS</span>
       <span style={{color:T.muted, margin:"0 20px"}}>·</span>
-
       <span>🏏 MOST RUNS: <strong style={{color:T.yellow}}>{topScorer.name.toUpperCase()} ({topScorer.stats?.odi?.runs||0} Runs)</strong></span>
       <span style={{color:T.muted, margin:"0 20px"}}>·</span>
-      
       <span>🎯 MOST WICKETS: <strong style={{color:T.orange}}>{topBowler.name.toUpperCase()} ({topBowler.stats?.odi?.wkts||0} Wkts)</strong></span>
       <span style={{color:T.muted, margin:"0 20px"}}>·</span>
-
       <span>🚀 HIGHEST SCORE: <strong style={{color:T.red}}>{topHigh.name.toUpperCase()} ({topHigh.stats?.odi?.h||0} Runs)</strong></span>
       <span style={{color:T.muted, margin:"0 20px"}}>·</span>
-
       <span>💥 MOST 6s: <strong style={{color:T.purple}}>{topSixes.name.toUpperCase()} ({topSixes.stats?.odi?.["6s"]||0})</strong></span>
       <span style={{color:T.muted, margin:"0 20px"}}>·</span>
-
       <span>⚡ MOST 4s: <strong style={{color:T.blue}}>{topFours.name.toUpperCase()} ({topFours.stats?.odi?.["4s"]||0})</strong></span>
       <span style={{color:T.muted, margin:"0 20px"}}>·</span>
-
       <span>🐐 MVP: <strong style={{color:T.cyan}}>{topMVP.name.toUpperCase()} ({topMVP.rating} Rtn)</strong></span>
       <span style={{color:T.muted, margin:"0 20px"}}>·</span>
-
     </div>
   );
 
   return (
     <div style={{background:"#ffffff05", borderBottom:`1px solid ${T.border}`, padding:"12px 0", fontSize:14, fontFamily:T.mono, overflow:"hidden", width:"100%"}}>
-      
       <style>
         {`
           @keyframes infinite-scroll {
             0% { transform: translateX(0); }
-            /* Slides exactly half the width (one full copy) for a seamless loop */
             100% { transform: translateX(-50%); } 
           }
           .ticker-track {
@@ -266,8 +235,6 @@ const Ticker = ({ data }) => {
           }
         `}
       </style>
-
-      {/* We render the exact same content twice side-by-side to close the gap! */}
       <div className="ticker-track">
         {tickerContent}
         {tickerContent}
@@ -281,7 +248,7 @@ const HomePage = ({setPage, onPlayer, onMatch, data}) => {
   const heroStats=[{label:"Players Tracked",value:data.players.length,icon:"👤",color:T.green},{label:"Matches Recorded",value:data.matches.length,icon:"🏏",color:T.blue},{label:"Teams",value:data.teams.length,icon:"🛡️",color:T.orange}];
   return(
     <div>
-      <div style={{position:"relative",overflow:"hidden",padding:"72px 28px 60px",textAlign:"center"}}>
+      <div style={{position:"relative",overflow:"hidden",padding:"clamp(40px, 8vw, 72px) 20px clamp(30px, 6vw, 60px)",textAlign:"center"}}>
         <div style={{position:"absolute",inset:0,backgroundImage:`radial-gradient(circle at 1px 1px,${T.green}07 1px,transparent 0)`,backgroundSize:"32px 32px",pointerEvents:"none"}}/>
         <div style={{position:"absolute",top:-100,left:"15%",width:500,height:500,borderRadius:"50%",background:`radial-gradient(circle,${T.green}09,transparent 70%)`,pointerEvents:"none"}}/>
         <div style={{position:"absolute",top:-60,right:"10%",width:350,height:350,borderRadius:"50%",background:`radial-gradient(circle,${T.blue}09,transparent 70%)`,pointerEvents:"none"}}/>
@@ -293,39 +260,17 @@ const HomePage = ({setPage, onPlayer, onMatch, data}) => {
             Upload Scorecards. Extract Data. Generate AI Insights automatically.
           </p>
           <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap",marginBottom:50}}>
-            {/* QUICK NAVIGATION MENU */}
-          <div style={{display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap", marginBottom: 40}}>
-            
-            <button 
-              onClick={() => setPage("players")} 
-              style={{padding:"12px 28px", borderRadius:10, background:"#ffffff05", border:`1px solid ${T.border}`, color:T.text, cursor:"pointer", fontFamily:T.display, fontSize: 16, letterSpacing: 1, transition:"0.2s", display:"flex", alignItems:"center", gap:10}} 
-              onMouseEnter={e=>{e.currentTarget.style.background=`${T.blue}15`; e.currentTarget.style.borderColor=T.blue; e.currentTarget.style.color=T.blue;}} 
-              onMouseLeave={e=>{e.currentTarget.style.background="#ffffff05"; e.currentTarget.style.borderColor=T.border; e.currentTarget.style.color=T.text;}}
-            >
+            <button onClick={() => setPage("players")} style={{padding:"12px 28px", borderRadius:10, background:"#ffffff05", border:`1px solid ${T.border}`, color:T.text, cursor:"pointer", fontFamily:T.display, fontSize: 16, letterSpacing: 1, transition:"0.2s", display:"flex", alignItems:"center", gap:10}} onMouseEnter={e=>{e.currentTarget.style.background=`${T.blue}15`; e.currentTarget.style.borderColor=T.blue; e.currentTarget.style.color=T.blue;}} onMouseLeave={e=>{e.currentTarget.style.background="#ffffff05"; e.currentTarget.style.borderColor=T.border; e.currentTarget.style.color=T.text;}}>
               <span style={{fontSize: 20}}>👤</span> PLAYERS
             </button>
-            
-            <button 
-              onClick={() => setPage("stats")} 
-              style={{padding:"12px 28px", borderRadius:10, background:"#ffffff05", border:`1px solid ${T.border}`, color:T.text, cursor:"pointer", fontFamily:T.display, fontSize: 16, letterSpacing: 1, transition:"0.2s", display:"flex", alignItems:"center", gap:10}} 
-              onMouseEnter={e=>{e.currentTarget.style.background=`${T.cyan}15`; e.currentTarget.style.borderColor=T.cyan; e.currentTarget.style.color=T.cyan;}} 
-              onMouseLeave={e=>{e.currentTarget.style.background="#ffffff05"; e.currentTarget.style.borderColor=T.border; e.currentTarget.style.color=T.text;}}
-            >
+            <button onClick={() => setPage("stats")} style={{padding:"12px 28px", borderRadius:10, background:"#ffffff05", border:`1px solid ${T.border}`, color:T.text, cursor:"pointer", fontFamily:T.display, fontSize: 16, letterSpacing: 1, transition:"0.2s", display:"flex", alignItems:"center", gap:10}} onMouseEnter={e=>{e.currentTarget.style.background=`${T.cyan}15`; e.currentTarget.style.borderColor=T.cyan; e.currentTarget.style.color=T.cyan;}} onMouseLeave={e=>{e.currentTarget.style.background="#ffffff05"; e.currentTarget.style.borderColor=T.border; e.currentTarget.style.color=T.text;}}>
               <span style={{fontSize: 20}}>📊</span> STATS
             </button>
-
-            <button 
-              onClick={() => setPage("matches")} 
-              style={{padding:"12px 28px", borderRadius:10, background:"#ffffff05", border:`1px solid ${T.border}`, color:T.text, cursor:"pointer", fontFamily:T.display, fontSize: 16, letterSpacing: 1, transition:"0.2s", display:"flex", alignItems:"center", gap:10}} 
-              onMouseEnter={e=>{e.currentTarget.style.background=`${T.orange}15`; e.currentTarget.style.borderColor=T.orange; e.currentTarget.style.color=T.orange;}} 
-              onMouseLeave={e=>{e.currentTarget.style.background="#ffffff05"; e.currentTarget.style.borderColor=T.border; e.currentTarget.style.color=T.text;}}
-            >
+            <button onClick={() => setPage("matches")} style={{padding:"12px 28px", borderRadius:10, background:"#ffffff05", border:`1px solid ${T.border}`, color:T.text, cursor:"pointer", fontFamily:T.display, fontSize: 16, letterSpacing: 1, transition:"0.2s", display:"flex", alignItems:"center", gap:10}} onMouseEnter={e=>{e.currentTarget.style.background=`${T.orange}15`; e.currentTarget.style.borderColor=T.orange; e.currentTarget.style.color=T.orange;}} onMouseLeave={e=>{e.currentTarget.style.background="#ffffff05"; e.currentTarget.style.borderColor=T.border; e.currentTarget.style.color=T.text;}}>
               <span style={{fontSize: 20}}>🏏</span> MATCHES
             </button>
-
           </div>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:12,maxWidth:680,margin:"0 auto"}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:12,maxWidth:680,margin:"0 auto"}}>
             {heroStats.map(({label,value,icon,color})=>(
               <div key={label} style={{background:"#ffffff06",border:`1px solid ${color}22`,borderRadius:16,padding:"18px 12px",textAlign:"center"}}>
                 <div style={{fontSize:22,marginBottom:5}}>{icon}</div>
@@ -333,17 +278,13 @@ const HomePage = ({setPage, onPlayer, onMatch, data}) => {
                 <div style={{fontSize:10,color:T.muted,fontFamily:T.mono,letterSpacing:.5}}>{label}</div>
               </div>
             ))}
-            
           </div>
-          {/* --- TOURNAMENT LEADERS SECTION --- */}
           {data?.players?.length > 0 && (
             <div style={{marginTop: 50}}>
               <div style={{fontFamily:T.display,fontSize:22,color:T.text,letterSpacing:1,marginBottom:20, textAlign: "center"}}>
                 <span style={{color: T.green}}>👑</span> TOURNAMENT LEADERS
               </div>
-              
               {(() => {
-                // Safety checkers to match however your data is formatted (stats.odi or batting/bowling)
                 const getRuns = p => p?.batting?.runs || p?.stats?.odi?.runs || 0;
                 const getWkts = p => p?.bowling?.wickets || p?.stats?.odi?.wkts || 0;
                 const getSixes = p => p?.batting?.sixes || p?.stats?.odi?.["6s"] || 0;
@@ -351,7 +292,6 @@ const HomePage = ({setPage, onPlayer, onMatch, data}) => {
                 const getHigh = p => p?.batting?.highest || p?.stats?.odi?.h || 0;
                 const getRtg = p => p?.rating || p?.strength || 0;
 
-                // Calculate all the top players instantly
                 const topScorer = data.players.reduce((p, c) => getRuns(p) > getRuns(c) ? p : c, data.players[0]);
                 const topBowler = data.players.reduce((p, c) => getWkts(p) > getWkts(c) ? p : c, data.players[0]);
                 const topSixes = data.players.reduce((p, c) => getSixes(p) > getSixes(c) ? p : c, data.players[0]);
@@ -359,7 +299,6 @@ const HomePage = ({setPage, onPlayer, onMatch, data}) => {
                 const topHigh = data.players.reduce((p, c) => getHigh(p) > getHigh(c) ? p : c, data.players[0]);
                 const topMVP = data.players.reduce((p, c) => getRtg(p) > getRtg(c) ? p : c, data.players[0]);
 
-                // Package them into an array for easy rendering
                 const leaders = [
                   { label: "MOST RUNS", emoji: "🏏", name: topScorer.name, stat: getRuns(topScorer), color: T.yellow },
                   { label: "MOST WICKETS", emoji: "🎯", name: topBowler.name, stat: getWkts(topBowler), color: T.orange },
@@ -370,14 +309,9 @@ const HomePage = ({setPage, onPlayer, onMatch, data}) => {
                 ];
 
                 return (
-                  <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16}}>
+                  <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 16}}>
                     {leaders.map((l, i) => (
-                      <div 
-                        key={i} 
-                        style={{background: "rgba(0,0,0,0.3)", border: `1px solid ${l.color}30`, borderRadius: 12, padding: "20px 10px", textAlign: "center", transition: "0.3s", cursor: "default"}} 
-                        onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-5px)"; e.currentTarget.style.borderColor=l.color; e.currentTarget.style.boxShadow=`0 8px 25px ${l.color}25`; e.currentTarget.style.background=`${l.color}0a`;}} 
-                        onMouseLeave={e=>{e.currentTarget.style.transform="none"; e.currentTarget.style.borderColor=`${l.color}30`; e.currentTarget.style.boxShadow="none"; e.currentTarget.style.background="rgba(0,0,0,0.3)";}}
-                      >
+                      <div key={i} style={{background: "rgba(0,0,0,0.3)", border: `1px solid ${l.color}30`, borderRadius: 12, padding: "20px 10px", textAlign: "center", transition: "0.3s", cursor: "default"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-5px)"; e.currentTarget.style.borderColor=l.color; e.currentTarget.style.boxShadow=`0 8px 25px ${l.color}25`; e.currentTarget.style.background=`${l.color}0a`;}} onMouseLeave={e=>{e.currentTarget.style.transform="none"; e.currentTarget.style.borderColor=`${l.color}30`; e.currentTarget.style.boxShadow="none"; e.currentTarget.style.background="rgba(0,0,0,0.3)";}}>
                         <div style={{fontSize: 26, marginBottom: 8}}>{l.emoji}</div>
                         <div style={{color: T.muted, fontSize: 10, fontFamily: T.mono, letterSpacing: 1, marginBottom: 8}}>{l.label}</div>
                         <div style={{color: l.color, fontSize: 16, fontFamily: T.display, letterSpacing: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", padding: "0 5px"}}>{l.name.toUpperCase()}</div>
@@ -389,10 +323,9 @@ const HomePage = ({setPage, onPlayer, onMatch, data}) => {
               })()}
             </div>
           )}
-          {/* -------------------------------------- */}
         </div>
       </div>
-      <div style={{padding:"0 24px",maxWidth:1200,margin:"0 auto"}}>
+      <div style={{padding:"0 20px",maxWidth:1200,margin:"0 auto"}}>
         {data.players.length === 0 && (
           <div style={{textAlign: "center", padding: "60px 20px", color: T.muted, border: `1px dashed ${T.border}`, borderRadius: 20, margin: "44px 0"}}>
             <div style={{fontSize: 40, marginBottom: 15}}>🔌</div>
@@ -411,7 +344,7 @@ const StatsPage = ({onPlayer, data}) => {
   const [cat,setCat] = useState("Batting");
   const [sortK,setSortK] = useState("runs");
   
-  if (data.players.length === 0) return <div style={{padding:"60px 24px", textAlign:"center", color:T.muted}}>No player data available.</div>;
+  if (data.players.length === 0) return <div style={{padding:"60px 20px", textAlign:"center", color:T.muted}}>No player data available.</div>;
 
   const handleCatChange = (newCat) => {
     setCat(newCat);
@@ -429,11 +362,11 @@ const StatsPage = ({onPlayer, data}) => {
     : [{k:"wkts",l:"Wickets"},{k:"econ",l:"Economy"},{k:"bowlAvg",l:"Avg"},{k:"overs",l:"Overs"}];
 
   const tableHeaders = isBat 
-    ? ["Rank","Player","M","Inn","NO","Runs","Balls","HS","Avg","SR","4s","6s"]
+    ? ["Rank","Player","M","Inn","NO","Runs","Balls","SR","HS","Avg","4s","6s"]
     : ["Rank","Player","M","Inn","Overs","Mdns","Runs","Wkts","Avg","Best","Econ"];
 
   return(
-    <div style={{padding:"28px 24px",maxWidth:1200,margin:"0 auto"}}>
+    <div style={{padding:"28px 20px",maxWidth:1200,margin:"0 auto"}}>
       <SecTitle accent={T.cyan} sub="Deep-dive statistics across extracted matches">STATISTICS EXPLORER</SecTitle>
       <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:22}}>
         <TabRow tabs={["Batting","Bowling"]} active={cat} onChange={handleCatChange} accent={T.orange}/>
@@ -447,8 +380,8 @@ const StatsPage = ({onPlayer, data}) => {
       
       <Card style={{marginBottom:20}}>
         <div style={{fontFamily:T.display,fontSize:20,color:T.yellow,letterSpacing:1,marginBottom:16}}>{cat.toUpperCase()} LEADERBOARD</div>
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontFamily:T.font,fontSize:14}}>
+        <div style={{width:"100%", overflowX:"hidden", marginBottom:"10px"}}>
+          <table style={{width:"100%", borderCollapse:"collapse",fontFamily:T.font,fontSize:"clamp(9px, 1.5vw, 14px)"}}>
             <thead>
               <tr>
                 {tableHeaders.map(h=>(<th key={h} style={{padding:"8px 11px",textAlign:h==="Player"?"left":"center",color:T.muted,fontSize:11,fontFamily:T.mono,letterSpacing:1,borderBottom:`1px solid ${T.border}`,whiteSpace:"nowrap"}}>{h}</th>))}
@@ -460,34 +393,34 @@ const StatsPage = ({onPlayer, data}) => {
                   <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.muted,fontSize:13,fontWeight:700}}>{i + 1}</td>
                   <td style={{padding:"11px"}}>
                     <div style={{display:"flex",alignItems:"center",gap:8}}>
-                      <div style={{width:28,height:28,borderRadius:7,background:`${T.green}18`,border:`1px solid ${T.green}28`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900,color:T.green,fontFamily:T.display}}>{p.avatar}</div>
+                      <div style={{width:28,height:28,borderRadius:7,background:`${T.green}18`,border:`1px solid ${T.green}28`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900,color:T.green,fontFamily:T.display, flexShrink: 0}}>{p.avatar}</div>
                       <span style={{fontWeight:700,color:T.text,fontSize:15}}>{p.name}</span>
                     </div>
                   </td>
                   <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.muted}}>{p.s.m}</td>
                   
-                  {isBat ? (
+                 {isBat ? (
                     <>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.muted}}>{p.s.inn}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.text}}>{p.s.inn}</td>
                       <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.text}}>{p.s.no}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.orange,fontWeight:800}}>{(p.s.runs||0).toLocaleString()}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.green}}>{p.s.balls}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.red,fontWeight:700}}>{p.s.h||"—"}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.cyan,fontWeight:700}}>{p.s.avg||"—"}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.yellow}}>{p.s.sr||"—"}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.blue,fontWeight:700}}>{p.s["4s"]||0}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.blue,fontWeight:700}}>{p.s["6s"]||0}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:sortK==="runs"?T.green:T.text,fontWeight:sortK==="runs"?800:500}}>{(p.s.runs||0).toLocaleString()}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.text}}>{p.s.balls}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.blue,fontWeight:sortK==="sr"?900:700}}>{p.s.sr||"—"}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:sortK==="h"?T.green:T.text,fontWeight:sortK==="h"?800:500}}>{p.s.h||"—"}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:sortK==="avg"?T.green:T.text,fontWeight:sortK==="avg"?800:500}}>{p.s.avg||"—"}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:sortK==="4s"?T.green:T.text,fontWeight:sortK==="4s"?800:500}}>{p.s["4s"]||0}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:sortK==="6s"?T.green:T.text,fontWeight:sortK==="6s"?800:500}}>{p.s["6s"]||0}</td>
                     </>
                   ) : (
                     <>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.muted}}>{p.s.bowlInn}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.yellow}}>{p.s.overs||0}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.muted}}>{p.s.maidens||0}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.orange,fontWeight:800}}>{p.s.bowlRuns||0}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.green,fontWeight:800}}>{p.s.wkts||0}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.cyan,fontWeight:700}}>{p.s.bowlAvg||"—"}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.red,fontSize:11}}>{p.s.bbm||"—"}</td>
-                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:p.s.econ?T.purple:T.muted}}>{p.s.econ||"—"}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.text}}>{p.s.bowlInn}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:sortK==="overs"?T.green:T.text,fontWeight:sortK==="overs"?800:500}}>{p.s.overs||0}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.text}}>{p.s.maidens||0}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.text}}>{p.s.bowlRuns||0}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:sortK==="wkts"?T.green:T.text,fontWeight:sortK==="wkts"?800:500}}>{p.s.wkts||0}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:sortK==="bowlAvg"?T.green:T.text,fontWeight:sortK==="bowlAvg"?800:500}}>{p.s.bowlAvg||"—"}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:T.text,fontSize:11}}>{p.s.bbm||"—"}</td>
+                      <td style={{padding:"11px",textAlign:"center",fontFamily:T.mono,color:sortK==="econ"?T.green:T.text,fontWeight:sortK==="econ"?800:500}}>{p.s.econ||"—"}</td>
                     </>
                   )}
                 </tr>
@@ -502,10 +435,7 @@ const StatsPage = ({onPlayer, data}) => {
 
 // PLAYER DETAIL
 const PlayerDetail = ({player:p,onBack}) => {
-  // Only the main tab state remains. The "fmt" state is deleted!
   const [tab,setTab]=useState("Overview");
-  
-  // We pull directly from "odi" because that is where adaptPlayer stores the local aggregate data
   const s = p.stats.odi; 
   
   return(
@@ -515,18 +445,18 @@ const PlayerDetail = ({player:p,onBack}) => {
       <Card style={{marginBottom:18,background:`linear-gradient(135deg,${T.card},#0d1a2e)`}}>
         <div style={{position:"absolute",top:-70,right:-70,width:220,height:220,borderRadius:"50%",background:`radial-gradient(circle,${T.green}08,transparent 70%)`,pointerEvents:"none"}}/>
         <div style={{display:"flex",gap:18,alignItems:"center",flexWrap:"wrap",marginBottom:18}}>
-          <div style={{width:76,height:76,borderRadius:20,background:`${T.green}15`,border:`3px solid ${T.green}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:900,color:T.green,fontFamily:T.display}}>{p.avatar}</div>
-          <div style={{flex:1}}>
-            <div style={{fontFamily:T.display,fontSize:36,letterSpacing:2,color:T.text}}>{p.name}</div>
+          <div style={{width:76,height:76,borderRadius:20,background:`${T.green}15`,border:`3px solid ${T.green}35`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:900,color:T.green,fontFamily:T.display, flexShrink: 0}}>{p.avatar}</div>
+          <div style={{flex:1, minWidth: 200}}>
+            <div style={{fontFamily:T.display,fontSize:"clamp(28px, 6vw, 36px)",letterSpacing:2,color:T.text}}>{p.name}</div>
             <div style={{color:T.muted,fontSize:13,marginBottom:7,fontFamily:T.font}}>{p.flag} Local Match Data · {p.role}</div>
             <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>{p.tags.map(t=><Pill key={t} color={T.blue}>{t}</Pill>)}<Pill color={fc(p.form)}>{p.form} Form</Pill></div>
           </div>
-          <div style={{textAlign:"right"}}>
+          <div style={{textAlign:"right", minWidth: 100}}>
             <div style={{fontFamily:T.display,fontSize:60,color:rc(p.rating),lineHeight:1}}>{p.rating}</div>
             <div style={{fontSize:10,color:T.muted,fontFamily:T.mono,letterSpacing:1}}>AI RATING</div>
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:9}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(100px,1fr))",gap:9}}>
           <SBox label="Matches" value={s?.m || 0} accent={T.blue}/>
           <SBox label="Runs" value={s?.runs || 0} accent={T.green}/>
           <SBox label="Wickets" value={s?.wkts || 0} accent={T.red}/>
@@ -535,13 +465,12 @@ const PlayerDetail = ({player:p,onBack}) => {
         </div>
       </Card>
 
-      {/* TABS UPDATED: Only Overview and Statistics remain */}
       <div style={{marginBottom:14}}>
         <TabRow tabs={["Overview","Statistics"]} active={tab} onChange={setTab}/>
       </div>
 
       {tab==="Overview"&&(
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(min(100%, 320px), 1fr))",gap:14}}>
           <Card>
             <div style={{fontFamily:T.display,fontSize:18,color:T.green,letterSpacing:1,marginBottom:12}}>RADAR PROFILE</div>
             <ResponsiveContainer width="100%" height={250}>
@@ -568,13 +497,13 @@ const PlayerDetail = ({player:p,onBack}) => {
               const r = s.runs, f = (s["4s"]||0)*4, sx = (s["6s"]||0)*6;
               const run = Math.max(0, r - f - sx);
               const dt = [
-                {n:"Running (1s/2s)", v:run, c:T.blue, g:"url(#gBlue)"},
-                {n:"Boundaries (4s)", v:f, c:T.green, g:"url(#gGreen)"},
-                {n:"Sixes (6s)", v:sx, c:T.orange, g:"url(#gOrange)"}
+                {n:"Running", v:run, c:T.blue, g:"url(#gBlue)"},
+                {n:"Boundaries", v:f, c:T.green, g:"url(#gGreen)"},
+                {n:"Sixes", v:sx, c:T.orange, g:"url(#gOrange)"}
               ];
 
               return (
-                <div style={{display:"flex",alignItems:"center",flex:1,gap:28,paddingLeft:8}}>
+                <div style={{display:"flex",alignItems:"center",flexWrap: "wrap", justifyContent:"center", gap:20}}>
                   <div style={{position:"relative",width:150,height:150,flexShrink:0}}>
                     <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
                       <div style={{fontFamily:T.display,fontSize:32,color:T.text,lineHeight:1}}>{r}</div>
@@ -594,7 +523,7 @@ const PlayerDetail = ({player:p,onBack}) => {
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div style={{flex:1,display:"flex",flexDirection:"column",gap:18}}>
+                  <div style={{flex:1, minWidth: 160, display:"flex",flexDirection:"column",gap:18}}>
                     {dt.map(d=>(
                       <div key={d.n} style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                         <div style={{display:"flex",alignItems:"center",gap:12}}>
@@ -637,12 +566,11 @@ const PlayerDetail = ({player:p,onBack}) => {
         </div>
       )}
 
-      {/* STATISTICS TAB UPDATED: Sub-tabs removed, changed to a single Career component */}
       {tab==="Statistics"&&(
         <div>
           <Card>
             <div style={{fontFamily:T.display,fontSize:22,color:T.cyan,letterSpacing:1,marginBottom:18}}>CAREER STATISTICS</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(100px,1fr))",gap:10,marginBottom:22}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(100px,1fr))",gap:10,marginBottom:22}}>
               {[{l:"Matches",v:s?.m,c:T.blue},{l:"Innings",v:s?.inn,c:T.blue},{l:"Runs",v:(s?.runs||0).toLocaleString(),c:T.green},{l:"Average",v:s?.avg||"—",c:T.green},{l:"Strike Rate",v:s?.sr||"—",c:T.yellow},{l:"Highest",v:s?.h||"—",c:T.red},{l:"50s",v:s?.["50s"]||0,c:T.purple},{l:"100s",v:s?.["100s"]||0,c:T.orange},...(s?.wkts?[{l:"Wickets",v:s.wkts,c:T.red},{l:"Best",v:s.bbm,c:T.red},{l:"Economy",v:s.econ,c:T.cyan}]:[])].map(({l,v,c},i)=><SBox key={i} label={l} value={v} accent={c}/>)}
             </div>
           </Card>
@@ -660,30 +588,38 @@ const MatchDetail = ({match:m,onBack}) => {
   
   const id = m.innings[inn];
 
-  // Procedurally generate chart data for PDF uploads since they lack ball-by-ball stats
   const totalOvers = Math.ceil(id.overs || 5);
-  const overData = m.overData || Array.from({length: totalOvers}, (_, i) => ({o: i+1, r: Math.floor(Math.random() * 12) + 3}));
-  const winProb = m.winProb || Array.from({length: totalOvers}, (_, i) => Math.min(95, Math.max(5, 50 + (Math.sin(i) * 20) + (i * (50/totalOvers)))));
+  const bowlerChartData = id.bowling?.map(b => ({
+    name: b.name.split(" ")[0],
+    runs: b.runs || b.r || 0,
+    wickets: b.wickets || b.wkts || 0
+  })) || [];
+
+  const fowChartData = id.fall_of_wickets?.map(f => ({
+    over: f.over,
+    score: f.score,
+    batsman: f.batsman,
+    wicket: f.wicket
+  })) || [];
 
   return(
     <div style={{maxWidth:980,margin:"0 auto",padding:"0 20px 40px"}}>
       <button onClick={onBack} style={{background:"#ffffff08",border:`1px solid ${T.border}`,color:T.muted,padding:"7px 16px",borderRadius:9,cursor:"pointer",marginBottom:16,fontSize:13,fontFamily:T.mono}}>← Back</button>
       
-      {/* Match Header */}
       <Card style={{marginBottom:18}}>
         <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:12,marginBottom:16}}>
           <div>
             <div style={{display:"flex",gap:7,marginBottom:8}}>
               <Pill color={m.format==="Test"?T.orange:m.format==="ODI"?T.blue:T.green}>{m.format || "Local Match"}</Pill>
             </div>
-            <div style={{fontFamily:T.display,fontSize:30,letterSpacing:1,color:T.text,marginBottom:3}}>{m.match_title}</div>
+            <div style={{fontFamily:T.display,fontSize:"clamp(22px, 5vw, 30px)",letterSpacing:1,color:T.text,marginBottom:3}}>{m.match_title}</div>
           </div>
           <div style={{textAlign:"right"}}>
             <div style={{color:T.green,fontWeight:800,fontSize:14,fontFamily:T.font}}>{m.result}</div>
             {m.potm && <div style={{color:T.yellow,fontSize:12,fontFamily:T.mono,marginTop:5}}>⭐ POTM: {m.potm}</div>}
           </div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:11}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))",gap:11}}>
           {m.innings.map((g,i)=>(
             <div key={i} style={{background:"#ffffff05",border:`1px solid ${T.border}`,borderRadius:12,padding:12}}>
               <div style={{fontWeight:700,color:T.text,marginBottom:3,fontFamily:T.font}}>{g.team}</div>
@@ -694,70 +630,71 @@ const MatchDetail = ({match:m,onBack}) => {
         </div>
       </Card>
 
-      {/* Dynamic Charts */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:18}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(min(100%, 320px), 1fr))",gap:14,marginBottom:18}}>
         <Card>
-          <div style={{fontFamily:T.display,fontSize:16,color:T.blue,letterSpacing:1,marginBottom:11}}>OVER PROGRESSION</div>
+          <div style={{fontFamily:T.display,fontSize:16,color:T.blue,letterSpacing:1,marginBottom:11}}>RUNS PER BOWLER</div>
           <ResponsiveContainer width="100%" height={190}>
-            <BarChart data={overData}>
+            <BarChart data={bowlerChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05"/>
-              <XAxis dataKey="o" tick={{fill:T.muted,fontSize:10,fontFamily:T.mono}} axisLine={false} tickLine={false}/>
+              <XAxis dataKey="name" tick={{fill:T.muted,fontSize:10,fontFamily:T.mono}} axisLine={false} tickLine={false}/>
               <YAxis tick={{fill:T.muted,fontSize:10}} axisLine={false} tickLine={false}/>
-              <Tooltip contentStyle={{background:"#0d1424",border:`1px solid ${T.border2}`,borderRadius:8,fontSize:12,fontFamily:T.mono}}/>
-              <Bar dataKey="r" fill={T.blue} radius={[3,3,0,0]}/>
+              <Tooltip contentStyle={{background:"#0d1424",border:`1px solid ${T.border2}`,borderRadius:8,fontSize:12,fontFamily:T.mono}} formatter={(value, name) => [value, name === 'runs' ? 'Runs Conceded' : name]}/>
+              <Bar dataKey="runs" fill={T.blue} radius={[3,3,0,0]}/>
             </BarChart>
           </ResponsiveContainer>
         </Card>
         <Card>
-          <div style={{fontFamily:T.display,fontSize:16,color:T.red,letterSpacing:1,marginBottom:11}}>WIN PROBABILITY</div>
+          <div style={{fontFamily:T.display,fontSize:16,color:T.red,letterSpacing:1,marginBottom:11}}>FALL OF WICKETS</div>
           <ResponsiveContainer width="100%" height={190}>
-            <AreaChart data={winProb.map((v,i)=>({o:i+1,p:v}))}>
-              <defs><linearGradient id="wpd" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={T.red} stopOpacity={.3}/><stop offset="95%" stopColor={T.red} stopOpacity={0}/></linearGradient></defs>
+            <LineChart data={fowChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05"/>
-              <XAxis dataKey="o" tick={{fill:T.muted,fontSize:10,fontFamily:T.mono}} axisLine={false} tickLine={false}/>
-              <YAxis domain={[0,100]} tick={{fill:T.muted,fontSize:10}} axisLine={false} tickLine={false}/>
-              <Tooltip contentStyle={{background:"#0d1424",border:`1px solid ${T.border2}`,borderRadius:8,fontSize:12,fontFamily:T.mono}} formatter={v=>`${v.toFixed(1)}%`}/>
-              <Area type="monotone" dataKey="p" stroke={T.red} strokeWidth={2} fill="url(#wpd)"/>
-            </AreaChart>
+              <XAxis dataKey="over" type="number" domain={[0, 'dataMax']} tick={{fill:T.muted,fontSize:10,fontFamily:T.mono}} axisLine={false} tickLine={false} />
+              <YAxis dataKey="score" tick={{fill:T.muted,fontSize:10}} axisLine={false} tickLine={false}/>
+              <Tooltip contentStyle={{background:"#0d1424",border:`1px solid ${T.border2}`,borderRadius:8,fontSize:12,fontFamily:T.mono}} formatter={(value, name, props) => { if (name === 'score') return [`${value} runs`, `Wicket ${props.payload.wicket}: ${props.payload.batsman}`]; return [value, name]; }} labelFormatter={(label) => `Over: ${label}`}/>
+              <Line type="stepAfter" dataKey="score" stroke={T.red} strokeWidth={2} dot={{r: 4, fill: T.red}} activeDot={{r: 6}} />
+            </LineChart>
           </ResponsiveContainer>
         </Card>
       </div>
 
-      {/* Detailed Scorecards */}
       <Card>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:13,flexWrap:"wrap",gap:8}}>
           <div style={{fontFamily:T.display,fontSize:20,color:T.yellow,letterSpacing:1}}>SCORECARD</div>
           <TabRow tabs={m.innings.map(g=>g.team)} active={m.innings[inn].team} onChange={v=>setInn(m.innings.findIndex(g=>g.team===v))} accent={T.yellow}/>
         </div>
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-            <thead><tr style={{borderBottom:`1px solid ${T.border}`}}>{["Batter","How Out","R","B","4s","6s","SR"].map(h=><th key={h} style={{padding:"8px 9px",textAlign:h==="Batter"||h==="How Out"?"left":"right",color:T.muted,fontSize:10,fontFamily:T.mono,letterSpacing:1}}>{h}</th>)}</tr></thead>
-            <tbody>{id.batting?.map((b,i)=>(
-              <tr key={i} style={{borderBottom:`1px solid ${T.border}`}}>
-                <td style={{padding:"9px",color:T.text,fontWeight:600,fontFamily:T.font}}>{b.name}</td>
-                <td style={{padding:"9px",color:T.muted,fontSize:11,fontFamily:T.mono}}>{b.how_out || b.how || "not out"}</td>
-                <td style={{padding:"9px",textAlign:"right",color:T.green,fontWeight:700,fontFamily:T.mono}}>{b.runs}</td>
-                <td style={{padding:"9px",textAlign:"right",color:T.muted,fontFamily:T.mono}}>{b.balls}</td>
-                <td style={{padding:"9px",textAlign:"right",color:T.blue,fontFamily:T.mono}}>{b.fours ?? b["4s"] ?? 0}</td>
-                <td style={{padding:"9px",textAlign:"right",color:T.orange,fontFamily:T.mono}}>{b.sixes ?? b["6s"] ?? 0}</td>
-                <td style={{padding:"9px",textAlign:"right",color:T.muted,fontFamily:T.mono}}>{b.sr ?? ((b.runs/b.balls)*100).toFixed(1)}</td>
-              </tr>
-            ))}</tbody>
-          </table>
-          <div style={{marginTop:14,fontFamily:T.display,fontSize:17,color:T.purple,letterSpacing:1,marginBottom:9}}>BOWLING</div>
-          <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
-            <thead><tr style={{borderBottom:`1px solid ${T.border}`}}>{["Bowler","O","M","R","W","Econ"].map(h=><th key={h} style={{padding:"8px 9px",textAlign:h==="Bowler"?"left":"right",color:T.muted,fontSize:10,fontFamily:T.mono,letterSpacing:1}}>{h}</th>)}</tr></thead>
-            <tbody>{id.bowling?.map((b,i)=>(
-              <tr key={i} style={{borderBottom:`1px solid ${T.border}`}}>
-                <td style={{padding:"9px",color:T.text,fontWeight:600,fontFamily:T.font}}>{b.name}</td>
-                <td style={{padding:"9px",textAlign:"right",color:T.muted,fontFamily:T.mono}}>{b.overs ?? b.o}</td>
-                <td style={{padding:"9px",textAlign:"right",color:T.muted,fontFamily:T.mono}}>{b.maidens ?? b.m}</td>
-                <td style={{padding:"9px",textAlign:"right",color:T.red,fontFamily:T.mono}}>{b.runs ?? b.r}</td>
-                <td style={{padding:"9px",textAlign:"right",color:T.green,fontWeight:700,fontFamily:T.mono}}>{b.wickets ?? b.wkts}</td>
-                <td style={{padding:"9px",textAlign:"right",color:T.yellow,fontFamily:T.mono}}>{b.economy ?? b.econ}</td>
-              </tr>
-            ))}</tbody>
-          </table>
+        <div style={{width:"100%", overflowX:"hidden", marginBottom:"15px"}}>
+          <div style={{paddingBottom: "5px"}}>
+            <table style={{width:"100%", borderCollapse:"collapse",fontSize:"clamp(9px, 1.5vw, 13px)"}}>
+              <thead><tr style={{borderBottom:`1px solid ${T.border}`}}>{["Batter","How Out","R","B","SR","4s","6s"].map(h=><th key={h} style={{padding:"8px 9px",textAlign:h==="Batter"||h==="How Out"?"left":"right",color:T.muted,fontSize:10,fontFamily:T.mono,letterSpacing:1}}>{h}</th>)}</tr></thead>
+              <tbody>{id.batting?.map((b,i)=>(
+                <tr key={i} style={{borderBottom:`1px solid ${T.border}`}}>
+                  <td style={{padding:"9px",color:T.text,fontWeight:600,fontFamily:T.font}}>{b.name}</td>
+                  <td style={{padding:"9px",color:T.muted,fontSize:11,fontFamily:T.mono}}>{b.how_out || b.how || "not out"}</td>
+                  <td style={{padding:"9px",textAlign:"right",color:T.green,fontWeight:800,fontFamily:T.mono}}>{b.runs}</td>
+                  <td style={{padding:"9px",textAlign:"right",color:T.text,fontFamily:T.mono}}>{b.balls}</td>
+                  <td style={{padding:"9px",textAlign:"right",color:T.blue,fontWeight:800,fontFamily:T.mono}}>{b.sr ?? ((b.runs/b.balls)*100).toFixed(1)}</td>
+                  <td style={{padding:"9px",textAlign:"right",color:T.text,fontFamily:T.mono}}>{b.fours ?? b["4s"] ?? 0}</td>
+                  <td style={{padding:"9px",textAlign:"right",color:T.text,fontFamily:T.mono}}>{b.sixes ?? b["6s"] ?? 0}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+            
+            <div style={{marginTop:14,fontFamily:T.display,fontSize:17,color:T.purple,letterSpacing:1,marginBottom:9}}>BOWLING</div>
+            <table style={{width:"100%", borderCollapse:"collapse",fontSize:"clamp(9px, 1.5vw, 13px)"}}>
+              <thead><tr style={{borderBottom:`1px solid ${T.border}`}}>{["Bowler","O","M","R","W","Econ"].map(h=><th key={h} style={{padding:"8px 9px",textAlign:h==="Bowler"?"left":"right",color:T.muted,fontSize:10,fontFamily:T.mono,letterSpacing:1}}>{h}</th>)}</tr></thead>
+              <tbody>{id.bowling?.map((b,i)=>(
+                <tr key={i} style={{borderBottom:`1px solid ${T.border}`}}>
+                  <td style={{padding:"9px",color:T.text,fontWeight:600,fontFamily:T.font}}>{b.name}</td>
+                  <td style={{padding:"9px",textAlign:"right",color:T.text,fontFamily:T.mono}}>{b.overs ?? b.o}</td>
+                  <td style={{padding:"9px",textAlign:"right",color:T.text,fontFamily:T.mono}}>{b.maidens ?? b.m}</td>
+                  <td style={{padding:"9px",textAlign:"right",color:T.green,fontWeight:800,fontFamily:T.mono}}>{b.runs ?? b.r}</td>
+                  <td style={{padding:"9px",textAlign:"right",color:T.text,fontWeight:700,fontFamily:T.mono}}>{b.wickets ?? b.wkts}</td>
+                  <td style={{padding:"9px",textAlign:"right",color:T.text,fontFamily:T.mono}}>{b.economy ?? b.econ}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+
         </div>
       </Card>
     </div>
@@ -772,7 +709,7 @@ const ComparePage = ({data}) => {
   
   if (data.players.length < 2) {
     return (
-      <div style={{padding:"60px 24px", maxWidth:980, margin:"0 auto", textAlign:"center"}}>
+      <div style={{padding:"60px 20px", maxWidth:980, margin:"0 auto", textAlign:"center"}}>
          <div style={{fontSize: 40, marginBottom: 15}}>⚔️</div>
          <h3 style={{fontFamily: T.display, fontSize: 24, color: T.text, letterSpacing: 1}}>NOT ENOUGH DATA</h3>
          <p style={{color: T.muted, marginTop: 10}}>You need at least two players loaded in the system to compare them.</p>
@@ -790,16 +727,16 @@ const ComparePage = ({data}) => {
   };
   
   return(
-    <div style={{padding:"28px 24px",maxWidth:980,margin:"0 auto"}}>
+    <div style={{padding:"28px 20px",maxWidth:980,margin:"0 auto"}}>
       <SecTitle accent={T.cyan} sub="Head-to-head player comparison">PLAYER COMPARISON</SecTitle>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:18}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(min(100%, 300px), 1fr))",gap:12,marginBottom:18}}>
         {[{p:p1,setP:setP1,accent:T.green},{p:p2,setP:setP2,accent:T.blue}].map(({p,setP,accent})=>(
           <Card key={p?.id || accent} style={{border:`1px solid ${accent}25`}}>
             <select value={p?.id} onChange={e=>setP(data.players.find(pl=>pl.id===e.target.value))} style={{width:"100%",background:"#ffffff08",border:`1px solid ${T.border}`,color:T.text,padding:"8px 11px",borderRadius:8,marginBottom:11,fontSize:13,fontFamily:T.mono}}>
               {data.players.map(pl=><option key={pl.id} value={pl.id} style={{background:"#0d1424"}}>{pl.name}</option>)}
             </select>
             <div style={{display:"flex",alignItems:"center",gap:11}}>
-              <div style={{width:42,height:42,borderRadius:12,background:`${accent}18`,border:`2px solid ${accent}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:900,color:accent,fontFamily:T.display}}>{p?.avatar}</div>
+              <div style={{width:42,height:42,borderRadius:12,background:`${accent}18`,border:`2px solid ${accent}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:900,color:accent,fontFamily:T.display, flexShrink: 0}}>{p?.avatar}</div>
               <div style={{flex:1}}><div style={{fontWeight:700,color:T.text,fontSize:15,fontFamily:T.font}}>{p?.name}</div></div>
               <div style={{fontFamily:T.display,fontSize:32,color:accent,lineHeight:1}}>{p?.rating}</div>
             </div>
@@ -847,7 +784,7 @@ const AdminPanel = ({data, refreshData}) => {
   };
 
   return(
-    <div style={{padding:"28px 24px",maxWidth:1200,margin:"0 auto"}}>
+    <div style={{padding:"28px 20px",maxWidth:1200,margin:"0 auto"}}>
       <SecTitle accent={T.orange} sub="Database management and file processing">ADMIN PANEL</SecTitle>
       <div style={{display:"flex",gap:7,marginBottom:22,flexWrap:"wrap"}}>
         {["dashboard","upload scorecards"].map(s=>(
@@ -875,7 +812,7 @@ const AdminPanel = ({data, refreshData}) => {
           <div style={{border:`2px dashed ${T.border2}`, borderRadius: 12, padding: 30, textAlign: "center", marginBottom: 20}}>
             <div style={{fontSize: 30, marginBottom: 10}}>📄</div>
             <p style={{color: T.muted, marginBottom: 15}}>Select one or multiple CricHeroes PDF Scorecards</p>
-            <input type="file" multiple accept=".pdf" onChange={handleFileChange} style={{color: T.text}}/>
+            <input type="file" multiple accept=".pdf" onChange={handleFileChange} style={{color: T.text, width: "100%", maxWidth: "300px"}}/>
             
             {files.length > 0 && (
               <div style={{marginTop: 15, textAlign: "left", background: "#ffffff05", padding: 10, borderRadius: 8}}>
@@ -903,16 +840,13 @@ export default function App(){
   const [selMatch,setSelMatch]=useState(null);
   const [search,setSearch]=useState("");
   
-  // ADD THIS LINE: State to control the popup on the main pages
   const [showInfo, setShowInfo] = useState(false);
   
-  // Data States
   const [players, setPlayers] = useState([]);
   const [matches, setMatches] = useState([]);
   const [teams, setTeams] = useState([]);
   const [connected, setConnected] = useState(false);
 
-  // Add these right below your other useState hooks inside App
   const [isAdminAuth, setIsAdminAuth] = useState(false);
   const [adminPass, setAdminPass] = useState("");
   const [loginErr, setLoginErr] = useState("");
@@ -922,45 +856,33 @@ export default function App(){
   const [selEditMatch, setSelEditMatch] = useState("");
 
   const [showMatchModal, setShowMatchModal] = useState(false);
- const [matchFormData, setMatchFormData] = useState({ id: "", title: "", result: "", innings: [] });
+  const [matchFormData, setMatchFormData] = useState({ id: "", title: "", result: "", innings: [] });
 
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
 
- // --- 1. JUST SELECT THE FILES (Don't upload yet) ---
   const handleFileSelection = (e) => {
-    // Grab the files the user picked and save them to our state
     const files = Array.from(e.target.files);
     if (files.length > 0) {
       setSelectedFiles(files);
     }
   };
 
-  // --- 2. CONFIRM AND SEND TO PYTHON ---
   const confirmUpload = async () => {
-    // If the list is empty, do nothing
     if (selectedFiles.length === 0) return;
-    
-    setIsUploading(true); // Turns on the "UPLOADING..." text on the button
-    
-    // Pack all the selected files into a digital box to send over the internet
+    setIsUploading(true); 
     const formData = new FormData();
     selectedFiles.forEach(file => formData.append("files", file));
 
     try {
-      // Send the box to your Python server!
       const response = await fetch("https://cricstatx-advanced.onrender.com/api/upload", {
         method: "POST",
         body: formData,
       });
-      
       const result = await response.json();
-      
       if (response.ok) {
         alert(`Successfully uploaded ${result.uploaded} matches!`);
-        setSelectedFiles([]); // Clear the list on the screen because we are done
-        
-        // If you have a function that refreshes your data, call it here!
+        setSelectedFiles([]); 
         if (typeof fetchData === "function") fetchData(); 
       } else {
         alert("Upload failed: " + result.error);
@@ -968,11 +890,10 @@ export default function App(){
     } catch (error) {
       alert("Backend error. Is your Python server running on port 5000?");
     } finally {
-      setIsUploading(false); // Turn off the "UPLOADING..." text
+      setIsUploading(false); 
     }
   };
 
-  // --- ADMIN DATABASE ACTIONS ---
   const handleDeletePlayer = async () => {
     if (!selEditPlayer) return alert("Select a player first!");
     if (!window.confirm(`Delete ${selEditPlayer} from all match records?`)) return;
@@ -983,7 +904,6 @@ export default function App(){
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ player_name: selEditPlayer })
       });
-      
       if (res.ok) { 
         alert("Player deleted!"); 
         setSelEditPlayer("");
@@ -1018,7 +938,6 @@ export default function App(){
     if (!selEditMatch) return alert("Select a match first!");
     if (!window.confirm("Delete this match? All player stats will be recalculated.")) return;
     
-    // We send selEditMatch which contains the match ID
     const res = await fetch(`${API_URL}/match/${selEditMatch}`, { method: "DELETE" });
     if (res.ok) { 
       alert("Match deleted!"); 
@@ -1027,7 +946,6 @@ export default function App(){
     }
   };
 
-  // --- OPENS MODAL & LOADS ALL MATCH DATA ---
   const handleOpenEditMatch = () => {
     if (!selEditMatch) return alert("Please select a match first!");
     const targetMatch = data?.matches?.find(m => m.id === selEditMatch);
@@ -1038,10 +956,10 @@ export default function App(){
         title: targetMatch.match_title || "",
         result: targetMatch.result || "",
         innings: targetMatch.innings?.map(inn => ({
-          ...inn, // PRESERVES extras, fall_of_wickets, etc. so they don't get deleted
+          ...inn,
           team: inn.team || "", 
-          total: inn.total ?? inn.total_runs ?? 0,       // FIX: Safely loads runs
-          wickets: inn.wickets ?? inn.total_wickets ?? 0, // FIX: Safely loads wickets
+          total: inn.total ?? inn.total_runs ?? 0,       
+          wickets: inn.wickets ?? inn.total_wickets ?? 0, 
           overs: inn.overs || "",
           batting: inn.batting || [], 
           bowling: inn.bowling || []  
@@ -1059,7 +977,7 @@ export default function App(){
         body: JSON.stringify({ 
           match_title: matchFormData.title, 
           result: matchFormData.result,
-          innings: matchFormData.innings // Sends EVERYTHING back to Python
+          innings: matchFormData.innings 
         })
       });
       if (res.ok) {
@@ -1077,10 +995,8 @@ export default function App(){
     setMatchFormData({ ...matchFormData, innings: newInnings });
   };
 
-  // --- NEW: HANDLE INDIVIDUAL PLAYER EDITS ---
   const handlePlayerStatChange = (innIndex, type, playerIndex, field, value) => {
     const newInnings = [...matchFormData.innings];
-    // Parse numbers automatically so Python math doesn't break
     let finalValue = value;
     if (['runs', 'balls', 'fours', 'sixes', 'maidens', 'wickets'].includes(field)) {
       finalValue = parseInt(value) || 0;
@@ -1090,7 +1006,6 @@ export default function App(){
   };
 
   const handleFullReset = async () => {
-    // Double confirmation to prevent accidental wipes
     if (!window.confirm("🚨 WARNING: Are you absolutely sure you want to DELETE ALL DATA? This cannot be undone!")) return;
     if (!window.confirm("🚨 FINAL CONFIRMATION: Are you 100% sure? All matches and players will be permanently erased.")) return;
 
@@ -1098,11 +1013,9 @@ export default function App(){
       const res = await fetch(`${API_URL}/reset`, { method: "DELETE" });
       if (res.ok) {
         alert("System reset successful. Database is now empty.");
-        // Clear dropdown states
         setSelEditPlayer("");
         setSelTargetPlayer("");
         setSelEditMatch("");
-        // Refresh the app data
         if (typeof fetchData === "function") fetchData(); 
       }
     } catch (error) {
@@ -1110,7 +1023,6 @@ export default function App(){
     }
   };
 
-  // Fetch logic
   const fetchData = async () => {
     try {
       const [pRes, mRes, tRes] = await Promise.all([
@@ -1136,47 +1048,51 @@ export default function App(){
   const filtered = players.filter(p=>p.name.toLowerCase().includes(search.toLowerCase())||p.role.toLowerCase().includes(search.toLowerCase()));
   const navItems=[{id:"home",l:"Home",i:"🏠"},{id:"players",l:"Players",i:"👤"},{id:"stats",l:"Stats",i:"📊"},{id:"matches",l:"Matches",i:"🏏"},{id:"teams",l:"Teams",i:"🌍"},{id:"compare",l:"Compare",i:"⚔️"},{id:"admin",l:"Admin",i:"⚙️"}];
 
-  if(selPlayer) return <div style={{minHeight:"100vh",background:T.bg,color:T.text}}><FontLink/><style>{`*{box-sizing:border-box;margin:0;padding:0;}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}`}</style><div style={{padding:"20px 0"}}><PlayerDetail player={selPlayer} onBack={()=>setSelPlayer(null)}/></div></div>;
-  if(selMatch) return <div style={{minHeight:"100vh",background:T.bg,color:T.text}}><FontLink/><style>{`*{box-sizing:border-box;margin:0;padding:0;}`}</style><div style={{padding:"20px 0"}}><MatchDetail match={selMatch} onBack={()=>setSelMatch(null)}/></div></div>;
+  if(selPlayer) return <div style={{minHeight:"100vh",width: "100%", maxWidth: "100vw", background:T.bg,color:T.text, overflowX: "hidden"}}><FontLink/><style>{`*{box-sizing:border-box;margin:0;padding:0;}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}`}</style><div style={{padding:"20px 0"}}><PlayerDetail player={selPlayer} onBack={()=>setSelPlayer(null)}/></div></div>;
+  if(selMatch) return <div style={{minHeight:"100vh",width: "100%", maxWidth: "100vw", background:T.bg,color:T.text, overflowX: "hidden"}}><FontLink/><style>{`*{box-sizing:border-box;margin:0;padding:0;}`}</style><div style={{padding:"20px 0"}}><MatchDetail match={selMatch} onBack={()=>setSelMatch(null)}/></div></div>;
 
 return(
-    <div style={{minHeight:"100vh", minWidth: "1200px", background:T.bg,color:T.text,fontFamily:T.font, position: "relative", overflowX: "hidden"}}>
+    <div style={{minHeight:"100vh", width: "100%", maxWidth: "100vw", background:T.bg,color:T.text,fontFamily:T.font, position: "relative", overflowX: "hidden"}}>
       <FontLink/>
       <style>{`*{box-sizing:border-box;margin:0;padding:0;}::-webkit-scrollbar{width:5px;height:5px;}::-webkit-scrollbar-track{background:${T.bg};}::-webkit-scrollbar-thumb{background:${T.border2};border-radius:3px;}input,select{outline:none;}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}`}</style>
 
-      {/* --- PREMIUM AMBIENT BACKGROUND SHADING --- */}
-      <div style={{position:"fixed", top:"-20%", left:"5%", width:"60vw", height:"60vw", background:`radial-gradient(circle, ${T.green}28, transparent 65%)`, filter:"blur(120px)", pointerEvents:"none", zIndex:0}} />
-      <div style={{position:"fixed", bottom:"-20%", right:"5%", width:"60vw", height:"60vw", background:`radial-gradient(circle, ${T.blue}28, transparent 65%)`, filter:"blur(120px)", pointerEvents:"none", zIndex:0}} />
-      {/* ------------------------------------------ */}
+      {/* --- PREMIUM AMBIENT BACKGROUND SHADING (BRIGHTER) --- */}
+      <div style={{position:"fixed", top:"-10%", left:"-20%", width:"clamp(400px, 60vw, 800px)", height:"clamp(400px, 60vw, 800px)", background:`radial-gradient(circle, ${T.green}50, transparent 70%)`, filter:"blur(clamp(60px, 8vw, 120px))", pointerEvents:"none", zIndex:0}} />
+      <div style={{position:"fixed", bottom:"-10%", right:"-20%", width:"clamp(400px, 60vw, 800px)", height:"clamp(400px, 60vw, 800px)", background:`radial-gradient(circle, ${T.blue}45, transparent 70%)`, filter:"blur(clamp(60px, 8vw, 120px))", pointerEvents:"none", zIndex:0}} />
+      {/* --------------------------------------------------------- */}
 
       {/* NAV */}
-      <nav style={{background:`${T.bg2}f0`,backdropFilter:"blur(24px)",borderBottom:`1px solid ${T.border}`,padding:"0 20px",position:"sticky",top:0,zIndex:200}}>
-        <div style={{maxWidth:1280,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",height:56,gap:12}}>
+      <nav style={{background:`${T.bg2}f0`,backdropFilter:"blur(24px)",borderBottom:`1px solid ${T.border}`,padding:"10px 20px",position:"sticky",top:0,zIndex:200}}>
+        <div style={{maxWidth:1280,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
           <div onClick={()=>setPage("home")} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer",flexShrink:0}}>
             <div style={{width:32,height:32,borderRadius:9,background:`linear-gradient(135deg,${T.green},${T.blue})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🏏</div>
             <span style={{fontFamily:T.display,fontSize:20,letterSpacing:2,color:T.green}}>CRIC<span style={{color:T.blue}}>STAT</span><span style={{color:T.text}}>X</span></span>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:1,flexWrap:"wrap"}}>
+          <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap",justifyContent:"center",overflowX:"auto",whiteSpace:"nowrap",paddingBottom:"4px"}}>
             {navItems.map(n=>( <button key={n.id} onClick={()=>setPage(n.id)} style={{padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:T.font,background:page===n.id?`${T.green}18`:"transparent",color:page===n.id?T.green:T.muted,transition:"all .2s"}}> <span style={{marginRight:3}}>{n.i}</span>{n.l} </button> ))}
           </div>
           <div style={{flexShrink:0}}>
-            {(page==="players"||page==="stats")&&(
+            {/* Search bar now ONLY shows on the Players page */}
+            {page==="players"&&(
               <div style={{position:"relative"}}>
                 <span style={{position:"absolute",left:9,top:"50%",transform:"translateY(-50%)",fontSize:12,color:T.muted}}>🔍</span>
-                <input placeholder="Search…" value={search} onChange={e=>setSearch(e.target.value)} style={{background:"#ffffff08",border:`1px solid ${T.border2}`,borderRadius:9,padding:"6px 11px 6px 28px",color:T.text,fontSize:13,width:150,fontFamily:T.font}}/>
+                <input placeholder="Search…" value={search} onChange={e=>setSearch(e.target.value)} style={{background:"#ffffff08",border:`1px solid ${T.border2}`,borderRadius:9,padding:"6px 11px 6px 28px",color:T.text,fontSize:13,width:"100%",maxWidth:150,fontFamily:T.font}}/>
               </div>
             )}
           </div>
         </div>
       </nav>
 
-      <Ticker data={data} />
+      {/* Main content wrapper to sit ABOVE the background glow */}
+      <div style={{position: "relative", zIndex: 1}}>
+        <Ticker data={data} />
 
       {page==="home"&&<HomePage setPage={setPage} onPlayer={setSelPlayer} onMatch={setSelMatch} data={data}/>}
       
+      {/* You were missing this line below! */}
       {page==="players"&&(
-        <div style={{padding:"28px 24px",maxWidth:1280,margin:"0 auto"}}>
-          <div style={{display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10}}>
+        <div style={{padding:"28px 20px",maxWidth:1280,margin:"0 auto"}}>
+          <div style={{display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, flexWrap: "wrap", gap: 10}}>
             <SecTitle accent={T.green} sub={`${filtered.length} players · click any card for full profile`}>PLAYER ROSTER</SecTitle>
             <div onClick={() => setShowInfo(true)} style={{display: "flex", alignItems: "center", gap: 6, cursor: "pointer", background: `${T.cyan}15`, border: `1px solid ${T.cyan}30`, padding: "8px 14px", borderRadius: 8, color: T.cyan, fontFamily: T.mono, fontSize: 13, transition: "all .2s"}}>
               <span style={{fontSize: 16}}>ⓘ</span> Rating Guide
@@ -1187,7 +1103,7 @@ return(
               <Card key={p.id} glow={T.green} onClick={()=>setSelPlayer(p)}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
                   <div style={{display:"flex",alignItems:"center",gap:10}}>
-                    <div style={{width:44,height:44,borderRadius:13,background:`${T.green}15`,border:`2px solid ${T.green}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:T.green,fontFamily:T.display}}>{p.avatar}</div>
+                    <div style={{width:44,height:44,borderRadius:13,background:`${T.green}15`,border:`2px solid ${T.green}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:900,color:T.green,fontFamily:T.display, flexShrink: 0}}>{p.avatar}</div>
                     <div><div style={{fontWeight:700,fontSize:15,color:T.text,fontFamily:T.font}}>{p.name}</div><div style={{fontSize:11,color:T.muted}}>{p.role}</div></div>
                   </div>
                   <div style={{fontFamily:T.display,fontSize:28,color:rc(p.rating),lineHeight:1}}>{p.rating}</div>
@@ -1207,11 +1123,10 @@ return(
       {page==="stats"&&<StatsPage onPlayer={setSelPlayer} data={data}/>}
       
       {page==="matches"&&(
-        <div style={{padding:"28px 24px",maxWidth:1280,margin:"0 auto"}}>
+        <div style={{padding:"28px 20px",maxWidth:1280,margin:"0 auto"}}>
           <SecTitle accent={T.blue} sub="All parsed matches and scorecards">MATCH CENTRE</SecTitle>
           <div style={{display:"grid",gap:13}}>
-            {matches.map(m=>{
-              // Parse match title to style "vs" separately
+            {[...matches].sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at)).map(m=>{
               let t1 = m.match_title, t2 = "";
               if (m.match_title) {
                 const parts = m.match_title.split(/ V\/S | vs | VS /i);
@@ -1225,7 +1140,6 @@ return(
                 <Card key={m.id} glow={T.blue} onClick={()=>setSelMatch(m)}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:11}}>
                     
-                    {/* LEFT SIDE: Title and Result */}
                     <div>
                       <div style={{fontFamily:T.font,fontSize:20,fontWeight:800,color:T.text,marginBottom:6}}>
                         {t2 ? (
@@ -1241,10 +1155,8 @@ return(
                       </div>
                     </div>
 
-                    {/* RIGHT SIDE: Innings Scores */}
                     <div style={{textAlign:"right", display:"flex", flexDirection:"column", gap:10}}>
                       {m.innings?.map((inn, idx) => {
-                        // FIX: Uses || instead of ?? so empty strings ("") fallback to 0
                         const runs = inn.total || inn.total_runs || 0;
                         const wickets = inn.wickets || inn.total_wickets || 0;
 
@@ -1271,11 +1183,10 @@ return(
       )}
 
       {page==="teams"&&(
-        <div style={{padding:"28px 24px",maxWidth:1100,margin:"0 auto"}}>
+        <div style={{padding:"28px 20px",maxWidth:1100,margin:"0 auto"}}>
           <SecTitle accent={T.blue} sub="Franchise & local team leaderboards">TEAM STANDINGS</SecTitle>
 
           {(() => {
-            // 1. DYNAMICALLY PARSE ALL TEAM STATS FROM MATCH HISTORY
             const tStats = {};
 
             data.matches.forEach(m => {
@@ -1317,7 +1228,6 @@ return(
               }
             });
 
-            // 2. BAYESIAN STRENGTH CALCULATOR
             const finalTeams = Object.values(tStats).map(t => {
               const actualWinPct = t.m > 0 ? ((t.w + (t.t * 0.5)) / t.m) * 100 : 0;
               const smoothedWinPct = (t.w + (t.t * 0.5) + 1) / (t.m + 2); 
@@ -1327,19 +1237,18 @@ return(
               
               return { ...t, winPct: actualWinPct.toFixed(1), strength };
             })
-            // 3. STRICT SORTING (Primary: AI Strength -> Secondary: Win% -> Tertiary: Total Wins)
             .sort((a, b) => b.strength - a.strength || parseFloat(b.winPct) - parseFloat(a.winPct) || b.w - a.w);
 
             if (finalTeams.length === 0) return <div style={{textAlign:"center",padding:60,color:T.muted}}>No team data available.</div>;
 
             return (
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:16}}>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
                 {finalTeams.map((team, idx) => (
                   <Card key={idx} style={{background:`linear-gradient(180deg, ${T.card}, #0a1120)`}}>
                     
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
                       <div style={{display:"flex",alignItems:"center",gap:12}}>
-                        <div style={{width:42,height:42,borderRadius:12,background:`${T.blue}15`,border:`1px solid ${T.blue}30`,display:"flex",alignItems:"center",justifyContent:"center",color:T.blue,fontWeight:900,fontFamily:T.display,fontSize:18}}>
+                        <div style={{width:42,height:42,borderRadius:12,background:`${T.blue}15`,border:`1px solid ${T.blue}30`,display:"flex",alignItems:"center",justifyContent:"center",color:T.blue,fontWeight:900,fontFamily:T.display,fontSize:18, flexShrink: 0}}>
                           {team.name.substring(0,2).toUpperCase()}
                         </div>
                         <div style={{fontFamily:T.display,fontSize:22,color:T.text,letterSpacing:1}}>{team.name.toUpperCase()}</div>
@@ -1383,12 +1292,11 @@ return(
 
       {page==="compare"&&<ComparePage data={data}/>}
       {page==="admin"&&(
-        <div style={{padding:"28px 24px",maxWidth:1000,margin:"0 auto"}}>
+        <div style={{padding:"28px 20px",maxWidth:1000,margin:"0 auto"}}>
           
           {!isAdminAuth ? (
-            /* --- LOCKED STATE --- */
             <div style={{display:"flex",justifyContent:"center",alignItems:"center",minHeight:"60vh"}}>
-              <Card style={{width: 400, textAlign: "center", padding: "40px 30px", background:`linear-gradient(180deg, ${T.card}, #0a1120)`}}>
+              <Card style={{width: "100%", maxWidth: 400, textAlign: "center", padding: "40px 30px", background:`linear-gradient(180deg, ${T.card}, #0a1120)`}}>
                  <div style={{fontSize: 40, marginBottom: 16}}>🔒</div>
                  <div style={{fontFamily:T.display,fontSize:24,color:T.text,letterSpacing:1,marginBottom:8}}>ADMIN ACCESS</div>
                  <div style={{color:T.muted,fontSize:13,fontFamily:T.mono,marginBottom:28}}>Enter master password to access database</div>
@@ -1423,29 +1331,25 @@ return(
               </Card>
             </div>
           ) : (
-            /* --- UNLOCKED ADMIN DASHBOARD --- */
             <div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24,flexWrap: "wrap", gap: 10}}>
                 <SecTitle accent={T.purple} sub="Manage backend data and API connections">ADMIN DASHBOARD</SecTitle>
                 <button onClick={()=>setIsAdminAuth(false)} style={{background:"#ffffff08",border:`1px solid ${T.border}`,color:T.muted,padding:"7px 16px",borderRadius:9,cursor:"pointer",fontSize:13,fontFamily:T.mono}} onMouseEnter={e=>e.currentTarget.style.color=T.red} onMouseLeave={e=>e.currentTarget.style.color=T.muted}>
                   Lock Session 🔒
                 </button>
               </div>
               
-              {/* TOP ROW: UPLOAD & STATUS */}
-              <div style={{display:"grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 20, marginBottom: 24}}>
+              <div style={{display:"grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, marginBottom: 24}}>
                 
                 <Card style={{textAlign:"center", padding: "30px 20px", background:`linear-gradient(180deg, ${T.card}, #0a1120)`}}>
                    <div style={{fontSize: 32, marginBottom: 12}}>📄</div>
                    <div style={{fontFamily:T.display,fontSize:20,color:T.text,marginBottom:8, letterSpacing: 1}}>UPLOAD SCORECARDS</div>
                    
-                   {/* FILE SELECTION BUTTON */}
                    <label style={{display: "inline-block", background: T.blue, color: "#fff", padding: "10px 24px", borderRadius: 8, fontFamily: T.display, fontSize: 14, letterSpacing: 1, cursor: "pointer", marginBottom: 15}}>
                      {selectedFiles.length > 0 ? "CHANGE SELECTION" : "SELECT PDF FILES"}
                      <input type="file" multiple accept=".pdf" style={{display: "none"}} onChange={handleFileSelection} />
                    </label>
 
-                   {/* SELECTED FILES LIST */}
                    {selectedFiles.length > 0 && (
                      <div style={{textAlign: "left", background: "#ffffff05", borderRadius: 8, padding: 12, marginBottom: 15, border: `1px solid ${T.border}`}}>
                         <div style={{fontSize: 10, color: T.muted, fontFamily: T.mono, marginBottom: 8, textTransform: "uppercase"}}>Files to Upload ({selectedFiles.length}):</div>
@@ -1457,7 +1361,6 @@ return(
                      </div>
                    )}
 
-                   {/* CONFIRM UPLOAD BUTTON */}
                    {selectedFiles.length > 0 && (
                      <button 
                        onClick={confirmUpload}
@@ -1489,64 +1392,52 @@ return(
                 </Card>
               </div>
 
-              {/* BOTTOM ROW: DATABASE MANAGEMENT */}
               <div style={{fontFamily:T.display,fontSize:20,color:T.text,letterSpacing:1,marginBottom:16, marginTop: 10}}>DATABASE MANAGEMENT</div>
-              <div style={{display:"grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: 20}}>
+              <div style={{display:"grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20}}>
                  
-                 {/* PLAYER CONTROLS */}
                  <Card style={{padding: "24px"}}>
                     <div style={{fontSize: 24, marginBottom: 12}}>👤</div>
                     <div style={{fontFamily:T.display,fontSize:18,color:T.blue,marginBottom:8, letterSpacing: 1}}>PLAYER CONTROLS</div>
                     <div style={{fontFamily:T.mono, fontSize: 12, color: T.muted, marginBottom: 20}}>Edit profiles, remove duplicates, or delete players entirely.</div>
                     
-                    {/* Wires the dropdown to selEditPlayer */}
                     <select value={selEditPlayer} onChange={e=>setSelEditPlayer(e.target.value)} style={{width:"100%", padding:"10px", borderRadius:6, background:"#ffffff08", border:`1px solid ${T.border}`, color:T.text, marginBottom: 12, fontFamily:T.mono, outline:"none"}}>
                       <option value="" style={{background: T.card}}>-- Select a Player --</option>
                       {data?.players?.map(p => <option key={p.id || p.name} value={p.name} style={{background: T.card}}>{p.name}</option>)}
                     </select>
                     
-                    <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
+                    <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(120px, 1fr))", gap:10}}>
                       <button onClick={()=>alert("Edit Player Form coming soon!")} style={{padding:"8px", borderRadius:6, background:`${T.blue}15`, color:T.blue, border:`1px solid ${T.blue}40`, cursor:"pointer", fontFamily:T.mono, fontSize: 12, fontWeight: 600}} onMouseEnter={e=>e.currentTarget.style.background=`${T.blue}30`} onMouseLeave={e=>e.currentTarget.style.background=`${T.blue}15`}>✏️ Edit Player</button>
-                      {/* Triggers handleDeletePlayer */}
                       <button onClick={handleDeletePlayer} style={{padding:"8px", borderRadius:6, background:`${T.red}15`, color:T.red, border:`1px solid ${T.red}40`, cursor:"pointer", fontFamily:T.mono, fontSize: 12, fontWeight: 600}} onMouseEnter={e=>e.currentTarget.style.background=`${T.red}30`} onMouseLeave={e=>e.currentTarget.style.background=`${T.red}15`}>🗑️ Delete</button>
                     </div>
                     
-                    {/* MERGE PLAYERS TOOL */}
                     <div style={{marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}`}}>
                       <div style={{fontFamily:T.mono, fontSize: 11, color: T.muted, marginBottom: 8}}>Merge selected player into:</div>
-                      <div style={{display:"flex", gap: 10}}>
-                        {/* Wires the target dropdown to selTargetPlayer */}
-                        <select value={selTargetPlayer} onChange={e=>setSelTargetPlayer(e.target.value)} style={{flex:1, padding:"8px", borderRadius:6, background:"#ffffff08", border:`1px solid ${T.border}`, color:T.text, fontFamily:T.mono, outline:"none"}}>
+                      <div style={{display:"flex", gap: 10, flexWrap: "wrap"}}>
+                        <select value={selTargetPlayer} onChange={e=>setSelTargetPlayer(e.target.value)} style={{flex:1, minWidth: "150px", padding:"8px", borderRadius:6, background:"#ffffff08", border:`1px solid ${T.border}`, color:T.text, fontFamily:T.mono, outline:"none"}}>
                           <option value="" style={{background: T.card}}>-- Target Player --</option>
                           {data?.players?.map(p => <option key={`target-${p.id || p.name}`} value={p.name} style={{background: T.card}}>{p.name}</option>)}
                         </select>
-                        {/* Triggers handleMergePlayers */}
                         <button onClick={handleMergePlayers} style={{padding:"8px 16px", borderRadius:6, background:`${T.purple}15`, color:T.purple, border:`1px solid ${T.purple}40`, cursor:"pointer", fontFamily:T.mono, fontSize: 12, fontWeight: 600}} onMouseEnter={e=>e.currentTarget.style.background=`${T.purple}30`} onMouseLeave={e=>e.currentTarget.style.background=`${T.purple}15`}>🔗 Merge</button>
                       </div>
                     </div>
                  </Card>
 
-                 {/* MATCH CONTROLS */}
                  <Card style={{padding: "24px"}}>
                     <div style={{fontSize: 24, marginBottom: 12}}>🏏</div>
                     <div style={{fontFamily:T.display,fontSize:18,color:T.orange,marginBottom:8, letterSpacing: 1}}>MATCH CONTROLS</div>
                     <div style={{fontFamily:T.mono, fontSize: 12, color: T.muted, marginBottom: 20}}>Fix scorecard errors, alter match results, or delete invalid matches.</div>
                     
-                    {/* Wires the dropdown to selEditMatch */}
                     <select value={selEditMatch} onChange={e=>setSelEditMatch(e.target.value)} style={{width:"100%", padding:"10px", borderRadius:6, background:"#ffffff08", border:`1px solid ${T.border}`, color:T.text, marginBottom: 12, fontFamily:T.mono, outline:"none"}}>
                       <option value="" style={{background: T.card}}>-- Select a Match --</option>
-                      {/* Notice we use m.id as the value so the Python backend knows exactly which one to delete */}
                       {data?.matches?.map((m) => <option key={m.id} value={m.id} style={{background: T.card}}>{m.match_title}</option>)}
                     </select>
                     
-                    <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
+                    <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(120px, 1fr))", gap:10}}>
                       <button onClick={handleOpenEditMatch} style={{padding:"8px", borderRadius:6, background:`${T.orange}15`, color:T.orange, border:`1px solid ${T.orange}40`, cursor:"pointer", fontFamily:T.mono, fontSize: 12, fontWeight: 600}} onMouseEnter={e=>e.currentTarget.style.background=`${T.orange}30`} onMouseLeave={e=>e.currentTarget.style.background=`${T.orange}15`}>✏️ Edit Match</button>
-                      {/* Triggers handleDeleteMatch */}
                       <button onClick={handleDeleteMatch} style={{padding:"8px", borderRadius:6, background:`${T.red}15`, color:T.red, border:`1px solid ${T.red}40`, cursor:"pointer", fontFamily:T.mono, fontSize: 12, fontWeight: 600}} onMouseEnter={e=>e.currentTarget.style.background=`${T.red}30`} onMouseLeave={e=>e.currentTarget.style.background=`${T.red}15`}>🗑️ Delete Match</button>
                     </div>
                  </Card>
 
-                 {/* DANGER ZONE */}
                  <Card style={{padding: "24px", gridColumn: "1 / -1", border: `1px solid ${T.red}40`, background: `linear-gradient(180deg, #3a0a0a20, #0a1120)`}}>
                     <div style={{fontSize: 24, marginBottom: 12}}>⚠️</div>
                     <div style={{fontFamily:T.display,fontSize:18,color:T.red,marginBottom:8, letterSpacing: 1}}>DANGER ZONE</div>
@@ -1569,11 +1460,11 @@ return(
       )}
       {/* --- EDIT MATCH POPUP MODAL --- */}
       {showMatchModal && (
-        <div style={{position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.8)", backdropFilter:"blur(5px)", zIndex:999, display:"flex", alignItems:"center", justifyContent:"center"}}>
-          <Card style={{width: 1200, maxWidth: "95vw", padding: 40, border:`1px solid ${T.orange}50`, background:`linear-gradient(180deg, ${T.card}, #0a1120)`, maxHeight: "95vh", overflowY: "auto"}}>
+        <div style={{position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.8)", backdropFilter:"blur(5px)", zIndex:999, display:"flex", alignItems:"center", justifyContent:"center", padding: "10px"}}>
+          <Card style={{width: "100%", maxWidth: 1200, padding: "clamp(20px, 4vw, 40px)", border:`1px solid ${T.orange}50`, background:`linear-gradient(180deg, ${T.card}, #0a1120)`, maxHeight: "95vh", overflowY: "auto"}}>
             <div style={{fontFamily:T.display, fontSize:22, color:T.orange, marginBottom: 20}}>✏️ EDIT MATCH & PLAYER STATS</div>
 
-            <div style={{display: "grid", gridTemplateColumns: "1fr 1fr", gap: 15, marginBottom: 20}}>
+            <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 15, marginBottom: 20}}>
               <div>
                 <label style={{display:"block", color:T.muted, fontSize:12, fontFamily:T.mono, marginBottom:5}}>Match Title (Teams)</label>
                 <input type="text" value={matchFormData.title} onChange={e => setMatchFormData({...matchFormData, title: e.target.value})} style={{width:"100%", boxSizing: "border-box", padding:12, borderRadius:6, background:"#ffffff10", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono}} />
@@ -1584,73 +1475,65 @@ return(
               </div>
             </div>
 
-            {/* --- INNINGS EDITORS --- */}
             {matchFormData.innings.map((inn, innIdx) => (
               <div key={innIdx} style={{marginBottom: 20, padding: 15, background: "#ffffff05", border: `1px solid ${T.border}`, borderRadius: 8}}>
                 <div style={{fontFamily: T.display, color: T.cyan, fontSize: 16, marginBottom: 10}}>INNINGS {innIdx + 1}</div>
                 
-                {/* INNINGS TOTALS */}
-                <div style={{display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 10, marginBottom: 15}}>
-                  <div><label style={{color:T.muted, fontSize:10, fontFamily:T.mono}}>Team</label><input type="text" value={inn.team} onChange={e => handleInningsChange(innIdx, "team", e.target.value)} style={{width:"100%", boxSizing: "border-box", padding:8, borderRadius:4, background:"#ffffff10", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize: 12}} /></div>
+                <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(80px, 1fr))", gap: 10, marginBottom: 15}}>
+                  <div style={{gridColumn: "span 2"}}><label style={{color:T.muted, fontSize:10, fontFamily:T.mono}}>Team</label><input type="text" value={inn.team} onChange={e => handleInningsChange(innIdx, "team", e.target.value)} style={{width:"100%", boxSizing: "border-box", padding:8, borderRadius:4, background:"#ffffff10", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize: 12}} /></div>
                   <div><label style={{color:T.muted, fontSize:10, fontFamily:T.mono}}>Runs</label><input type="number" value={inn.total} onChange={e => handleInningsChange(innIdx, "total", e.target.value)} style={{width:"100%", boxSizing: "border-box", padding:8, borderRadius:4, background:"#ffffff10", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize: 12}} /></div>
                   <div><label style={{color:T.muted, fontSize:10, fontFamily:T.mono}}>Wickets</label><input type="number" value={inn.wickets} onChange={e => handleInningsChange(innIdx, "wickets", e.target.value)} style={{width:"100%", boxSizing: "border-box", padding:8, borderRadius:4, background:"#ffffff10", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize: 12}} /></div>
                   <div><label style={{color:T.muted, fontSize:10, fontFamily:T.mono}}>Overs</label><input type="text" value={inn.overs} onChange={e => handleInningsChange(innIdx, "overs", e.target.value)} style={{width:"100%", boxSizing: "border-box", padding:8, borderRadius:4, background:"#ffffff10", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize: 12}} /></div>
                 </div>
 
-                {/* BATTING SCORECARD (Collapsible) */}
                     {inn.batting?.length > 0 && (
                       <details style={{background: "#ffffff03", border: `1px solid ${T.border}`, borderRadius: 6, marginBottom: 15, padding: 15}}>
                         <summary style={{color: T.yellow, fontFamily: T.display, cursor: "pointer", letterSpacing: 1, outline: "none"}}>🏏 EDIT BATTING</summary>
-                        <div style={{marginTop: 15, display: "flex", flexDirection: "column", gap: 8}}>
-                          
-                          {/* NEW: COLUMN HEADERS */}
-                          <div style={{display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 8, paddingBottom: 8, borderBottom: `1px solid ${T.border}`, color: T.muted, fontSize: 11, fontFamily: T.mono, textAlign: "center"}}>
-                            <div style={{textAlign: "left", paddingLeft: 5}}>Batter</div>
-                            <div>Runs</div>
-                            <div>Balls</div>
-                            <div>4s</div>
-                            <div>6s</div>
-                          </div>
-
-                          {/* SPACIOUS DATA ROWS */}
-                          {inn.batting.map((b, bIdx) => (
-                            <div key={bIdx} style={{display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 8}}>
-                              <input type="text" value={b.name} onChange={e=>handlePlayerStatChange(innIdx, 'batting', bIdx, 'name', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize:12}} />
-                              <input type="number" value={b.runs} onChange={e=>handlePlayerStatChange(innIdx, 'batting', bIdx, 'runs', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.yellow, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
-                              <input type="number" value={b.balls} onChange={e=>handlePlayerStatChange(innIdx, 'batting', bIdx, 'balls', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
-                              <input type="number" value={b.fours} onChange={e=>handlePlayerStatChange(innIdx, 'batting', bIdx, 'fours', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.blue, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
-                              <input type="number" value={b.sixes} onChange={e=>handlePlayerStatChange(innIdx, 'batting', bIdx, 'sixes', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.purple, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
+                        <div style={{marginTop: 15, overflowX: "auto"}}>
+                          <div style={{minWidth: "500px", display: "flex", flexDirection: "column", gap: 8}}>
+                            <div style={{display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 8, paddingBottom: 8, borderBottom: `1px solid ${T.border}`, color: T.muted, fontSize: 11, fontFamily: T.mono, textAlign: "center"}}>
+                              <div style={{textAlign: "left", paddingLeft: 5}}>Batter</div>
+                              <div>Runs</div>
+                              <div>Balls</div>
+                              <div>4s</div>
+                              <div>6s</div>
                             </div>
-                          ))}
+                            {inn.batting.map((b, bIdx) => (
+                              <div key={bIdx} style={{display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 8}}>
+                                <input type="text" value={b.name} onChange={e=>handlePlayerStatChange(innIdx, 'batting', bIdx, 'name', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize:12}} />
+                                <input type="number" value={b.runs} onChange={e=>handlePlayerStatChange(innIdx, 'batting', bIdx, 'runs', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.yellow, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
+                                <input type="number" value={b.balls} onChange={e=>handlePlayerStatChange(innIdx, 'batting', bIdx, 'balls', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
+                                <input type="number" value={b.fours} onChange={e=>handlePlayerStatChange(innIdx, 'batting', bIdx, 'fours', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.blue, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
+                                <input type="number" value={b.sixes} onChange={e=>handlePlayerStatChange(innIdx, 'batting', bIdx, 'sixes', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.purple, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </details>
                     )}
 
-                    {/* BOWLING SCORECARD (Collapsible) */}
                     {inn.bowling?.length > 0 && (
                       <details style={{background: "#ffffff03", border: `1px solid ${T.border}`, borderRadius: 6, padding: 15}}>
                         <summary style={{color: T.orange, fontFamily: T.display, cursor: "pointer", letterSpacing: 1, outline: "none"}}>🎯 EDIT BOWLING</summary>
-                        <div style={{marginTop: 15, display: "flex", flexDirection: "column", gap: 8}}>
-                          
-                          {/* NEW: COLUMN HEADERS */}
-                          <div style={{display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 8, paddingBottom: 8, borderBottom: `1px solid ${T.border}`, color: T.muted, fontSize: 11, fontFamily: T.mono, textAlign: "center"}}>
-                            <div style={{textAlign: "left", paddingLeft: 5}}>Bowler</div>
-                            <div>Overs</div>
-                            <div>Maidens</div>
-                            <div>Runs</div>
-                            <div>Wickets</div>
-                          </div>
-
-                          {/* SPACIOUS DATA ROWS */}
-                          {inn.bowling.map((bw, bwIdx) => (
-                            <div key={bwIdx} style={{display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 8}}>
-                              <input type="text" value={bw.name} onChange={e=>handlePlayerStatChange(innIdx, 'bowling', bwIdx, 'name', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize:12}} />
-                              <input type="text" value={bw.overs} onChange={e=>handlePlayerStatChange(innIdx, 'bowling', bwIdx, 'overs', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
-                              <input type="number" value={bw.maidens} onChange={e=>handlePlayerStatChange(innIdx, 'bowling', bwIdx, 'maidens', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
-                              <input type="number" value={bw.runs} onChange={e=>handlePlayerStatChange(innIdx, 'bowling', bwIdx, 'runs', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.red, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
-                              <input type="number" value={bw.wickets} onChange={e=>handlePlayerStatChange(innIdx, 'bowling', bwIdx, 'wickets', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.orange, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
+                        <div style={{marginTop: 15, overflowX: "auto"}}>
+                          <div style={{minWidth: "500px", display: "flex", flexDirection: "column", gap: 8}}>
+                            <div style={{display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 8, paddingBottom: 8, borderBottom: `1px solid ${T.border}`, color: T.muted, fontSize: 11, fontFamily: T.mono, textAlign: "center"}}>
+                              <div style={{textAlign: "left", paddingLeft: 5}}>Bowler</div>
+                              <div>Overs</div>
+                              <div>Maidens</div>
+                              <div>Runs</div>
+                              <div>Wickets</div>
                             </div>
-                          ))}
+                            {inn.bowling.map((bw, bwIdx) => (
+                              <div key={bwIdx} style={{display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr", gap: 8}}>
+                                <input type="text" value={bw.name} onChange={e=>handlePlayerStatChange(innIdx, 'bowling', bwIdx, 'name', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize:12}} />
+                                <input type="text" value={bw.overs} onChange={e=>handlePlayerStatChange(innIdx, 'bowling', bwIdx, 'overs', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
+                                <input type="number" value={bw.maidens} onChange={e=>handlePlayerStatChange(innIdx, 'bowling', bwIdx, 'maidens', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.text, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
+                                <input type="number" value={bw.runs} onChange={e=>handlePlayerStatChange(innIdx, 'bowling', bwIdx, 'runs', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.red, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
+                                <input type="number" value={bw.wickets} onChange={e=>handlePlayerStatChange(innIdx, 'bowling', bwIdx, 'wickets', e.target.value)} style={{padding:8, borderRadius:4, background:"#00000060", border:`1px solid ${T.border}`, color:T.orange, outline:"none", fontFamily:T.mono, fontSize:12, textAlign:"center"}} />
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </details>
                     )}
@@ -1658,20 +1541,19 @@ return(
               </div>
             ))}
 
-            <div style={{display:"flex", gap: 10, marginTop: 10}}>
-              <button onClick={() => setShowMatchModal(false)} style={{flex:1, padding:12, borderRadius:6, background:"transparent", border:`1px solid ${T.border}`, color:T.text, cursor:"pointer", fontFamily:T.mono}}>Cancel</button>
-              <button onClick={handleSaveMatchEdit} style={{flex:1, padding:12, borderRadius:6, background:T.orange, border:"none", color:"#fff", fontWeight:"bold", cursor:"pointer", fontFamily:T.display, letterSpacing:1}}>Save Master Record</button>
+            <div style={{display:"flex", gap: 10, marginTop: 10, flexWrap: "wrap"}}>
+              <button onClick={() => setShowMatchModal(false)} style={{flex:1, minWidth: "150px", padding:12, borderRadius:6, background:"transparent", border:`1px solid ${T.border}`, color:T.text, cursor:"pointer", fontFamily:T.mono}}>Cancel</button>
+              <button onClick={handleSaveMatchEdit} style={{flex:1, minWidth: "150px", padding:12, borderRadius:6, background:T.orange, border:"none", color:"#fff", fontWeight:"bold", cursor:"pointer", fontFamily:T.display, letterSpacing:1}}>Save Master Record</button>
             </div>
           </Card>
         </div>
       )}
-      {/* GLOBAL POPUP MODAL FOR RATING GUIDE */}
       {showInfo && (
         <div style={{position:"fixed",inset:0,background:"rgba(5,9,15,0.85)",backdropFilter:"blur(4px)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setShowInfo(false)}>
           <Card style={{maxWidth:500,width:"100%",border:`1px solid ${T.cyan}40`,background:`${T.bg2}`,boxShadow:"0 20px 40px rgba(0,0,0,0.6)",cursor:"default"}} onClick={e=>e.stopPropagation()}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-              <div style={{fontFamily:T.display,fontSize:22,color:T.cyan,letterSpacing:1}}>HOW THE RATING IS CALCULATED</div>
-              <button onClick={()=>setShowInfo(false)} style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",fontSize:22}}>&times;</button>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+              <div style={{fontFamily:T.display,fontSize:22,color:T.cyan,letterSpacing:1, paddingRight: 20}}>HOW THE RATING IS CALCULATED</div>
+              <button onClick={()=>setShowInfo(false)} style={{background:"transparent",border:"none",color:T.muted,cursor:"pointer",fontSize:22, lineHeight: 1}}>&times;</button>
             </div>
             <div style={{fontSize:14,color:T.text,lineHeight:1.7,fontFamily:T.font}}>
               <p style={{marginBottom:10}}><b style={{color:T.green}}>1. Fantasy Points (FPTS):</b> Raw impact is calculated from actual match stats: Runs (1 pt), Wickets (25 pts), 4s (2 pts), and 6s (4 pts).</p>
@@ -1683,11 +1565,12 @@ return(
         </div>
       )}
 
-      <footer style={{borderTop:`1px solid ${T.border}`,padding:"20px",textAlign:"center",marginTop:40,background:T.bg2}}></footer>
       <footer style={{borderTop:`1px solid ${T.border}`,padding:"20px",textAlign:"center",marginTop:40,background:T.bg2}}>
         <div style={{fontFamily:T.display,fontSize:17,letterSpacing:2,color:T.green,marginBottom:4}}>CRICSTATX</div>
         <div style={{fontSize:11,color:T.muted,fontFamily:T.mono}}>Advanced Cricket Analytics Platform · 2026</div>
       </footer>
+      
+      </div> {/* Closes the z-index wrapper */}
     </div>
   );
 }
