@@ -309,7 +309,7 @@ const HomePage = ({setPage, onPlayer, onMatch, data}) => {
                 ];
 
                 return (
-                  <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 16}}>
+                  <div style={{display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 160px), 1fr))", gap: 16}}>
                     {leaders.map((l, i) => (
                       <div key={i} style={{background: "rgba(0,0,0,0.3)", border: `1px solid ${l.color}30`, borderRadius: 12, padding: "20px 10px", textAlign: "center", transition: "0.3s", cursor: "default"}} onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-5px)"; e.currentTarget.style.borderColor=l.color; e.currentTarget.style.boxShadow=`0 8px 25px ${l.color}25`; e.currentTarget.style.background=`${l.color}0a`;}} onMouseLeave={e=>{e.currentTarget.style.transform="none"; e.currentTarget.style.borderColor=`${l.color}30`; e.currentTarget.style.boxShadow="none"; e.currentTarget.style.background="rgba(0,0,0,0.3)";}}>
                         <div style={{fontSize: 26, marginBottom: 8}}>{l.emoji}</div>
@@ -380,8 +380,9 @@ const StatsPage = ({onPlayer, data}) => {
       
       <Card style={{marginBottom:20}}>
         <div style={{fontFamily:T.display,fontSize:20,color:T.yellow,letterSpacing:1,marginBottom:16}}>{cat.toUpperCase()} LEADERBOARD</div>
-        <div style={{width:"100%", overflowX:"hidden", marginBottom:"10px"}}>
-          <table style={{width:"100%", borderCollapse:"collapse",fontFamily:T.font,fontSize:"clamp(9px, 1.5vw, 14px)"}}>
+        {/* Restored proper mobile horizontal scrolling for readability */}
+        <div style={{width:"100%", overflowX:"auto", WebkitOverflowScrolling:"touch", marginBottom:"10px", paddingBottom:"15px"}}>
+          <table style={{width:"100%", minWidth:"800px", borderCollapse:"collapse",fontFamily:T.font,fontSize:14}}>
             <thead>
               <tr>
                 {tableHeaders.map(h=>(<th key={h} style={{padding:"8px 11px",textAlign:h==="Player"?"left":"center",color:T.muted,fontSize:11,fontFamily:T.mono,letterSpacing:1,borderBottom:`1px solid ${T.border}`,whiteSpace:"nowrap"}}>{h}</th>))}
@@ -662,9 +663,9 @@ const MatchDetail = ({match:m,onBack}) => {
           <div style={{fontFamily:T.display,fontSize:20,color:T.yellow,letterSpacing:1}}>SCORECARD</div>
           <TabRow tabs={m.innings.map(g=>g.team)} active={m.innings[inn].team} onChange={v=>setInn(m.innings.findIndex(g=>g.team===v))} accent={T.yellow}/>
         </div>
-        <div style={{width:"100%", overflowX:"hidden", marginBottom:"15px"}}>
-          <div style={{paddingBottom: "5px"}}>
-            <table style={{width:"100%", borderCollapse:"collapse",fontSize:"clamp(9px, 1.5vw, 13px)"}}>
+        <div style={{width:"100%", overflowX:"auto", WebkitOverflowScrolling:"touch", marginBottom:"15px", paddingBottom:"15px"}}>
+          <div>
+            <table style={{width:"100%", minWidth:"600px", borderCollapse:"collapse",fontSize:13}}>
               <thead><tr style={{borderBottom:`1px solid ${T.border}`}}>{["Batter","How Out","R","B","SR","4s","6s"].map(h=><th key={h} style={{padding:"8px 9px",textAlign:h==="Batter"||h==="How Out"?"left":"right",color:T.muted,fontSize:10,fontFamily:T.mono,letterSpacing:1}}>{h}</th>)}</tr></thead>
               <tbody>{id.batting?.map((b,i)=>(
                 <tr key={i} style={{borderBottom:`1px solid ${T.border}`}}>
@@ -680,7 +681,7 @@ const MatchDetail = ({match:m,onBack}) => {
             </table>
             
             <div style={{marginTop:14,fontFamily:T.display,fontSize:17,color:T.purple,letterSpacing:1,marginBottom:9}}>BOWLING</div>
-            <table style={{width:"100%", borderCollapse:"collapse",fontSize:"clamp(9px, 1.5vw, 13px)"}}>
+            <table style={{width:"100%", minWidth:"600px", borderCollapse:"collapse",fontSize:13}}>
               <thead><tr style={{borderBottom:`1px solid ${T.border}`}}>{["Bowler","O","M","R","W","Econ"].map(h=><th key={h} style={{padding:"8px 9px",textAlign:h==="Bowler"?"left":"right",color:T.muted,fontSize:10,fontFamily:T.mono,letterSpacing:1}}>{h}</th>)}</tr></thead>
               <tbody>{id.bowling?.map((b,i)=>(
                 <tr key={i} style={{borderBottom:`1px solid ${T.border}`}}>
